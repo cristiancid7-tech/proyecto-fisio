@@ -32,7 +32,8 @@
         /* Estilo del Historial */
         .sesion-item { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 20px; position: relative; }
         .gallery { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
-        .img-thumb { width: 110px; height: 110px; object-fit: cover; border-radius: 8px; border: 2px solid #e2e8f0; }
+        .img-thumb { width: 110px; height: 110px; object-fit: cover; border-radius: 8px; border: 2px solid #e2e8f0; cursor: zoom-in; transition: 0.2s; }
+        .img-thumb:hover { transform: scale(1.05); border-color: var(--primary); }
         
         /* Elementos Ocultos que solo se verán en el PDF */
         #pdf-header-template { display: none; }
@@ -136,7 +137,10 @@
                         ${s.hallazgos_rx ? `<div style="font-size:0.9em; color:#2563eb;"><b>RX:</b> ${s.hallazgos_rx}</div>` : ''}
                     </div>
                     <div class="gallery">
-                        ${(s.Imagenes_Evolucion || []).map(i => `<img src="${i.url_imagen}" class="img-thumb" crossorigin="anonymous">`).join('')}
+                        ${(s.Imagenes_Evolucion || []).map(i => `
+                            <a href="${i.url_imagen}" target="_blank">
+                                <img src="${i.url_imagen}" class="img-thumb" crossorigin="anonymous" title="Clic para ampliar">
+                            </a>`).join('')}
                     </div>
                 </div>
             `).join('');
@@ -146,18 +150,19 @@
     async function generarPDF(idNota) {
         const { jsPDF } = window.jspdf;
         const elemento = document.getElementById(`reporte-${idNota}`);
+        
+        // Ocultar botones temporalmente
         const botones = elemento.querySelectorAll('button');
         botones.forEach(b => b.style.display = 'none');
 
-        // Crear un contenedor temporal para el PDF que incluya el encabezado
         const wrapper = document.createElement('div');
         wrapper.style.padding = '20px';
         wrapper.style.background = 'white';
         wrapper.style.width = '800px';
         
-        // Clonar el encabezado y el contenido de la sesión
         const header = document.getElementById('pdf-header-template').cloneNode(true);
         header.style.display = 'block';
+        
         const contenido = elemento.cloneNode(true);
         contenido.style.boxShadow = 'none';
         contenido.style.border = 'none';
@@ -176,7 +181,7 @@
             const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
             
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`Reporte_FisioCid_${idNota}.pdf`);
+            pdf.save(`Reporte_FisioCid_Nota_${idNota}.pdf`);
         } catch (error) {
             console.error(error);
             alert("Error al generar PDF.");

@@ -11,6 +11,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json());
 app.use(express.static('public'));
 
+// --- RUTAS DE PACIENTES ---
+
 // BUSCAR PACIENTE (Nombre + Apellidos)
 app.get('/buscar-paciente', async (req, res) => {
     const { consulta } = req.query;
@@ -22,27 +24,36 @@ app.get('/buscar-paciente', async (req, res) => {
     res.json(data || []);
 });
 
-// NUEVA RUTA: GUARDAR PACIENTE NUEVO
+// GUARDAR PACIENTE NUEVO
 app.post('/agregar-paciente', async (req, res) => {
     const { Nombre, Apellido_Paterno, Apellido_Materno, Telefono, Diagnostico } = req.body;
     try {
         const { data, error } = await supabase
             .from('Pacientes')
-            .insert([{ 
-                Nombre, 
-                Apellido_Paterno, 
-                Apellido_Materno, 
-                Telefono, 
-                Diagnostico 
-            }]);
-
+            .insert([{ Nombre, Apellido_Paterno, Apellido_Materno, Telefono, Diagnostico }]);
         if (error) throw error;
         res.json({ mensaje: "¡Paciente Registrado en FisioCid!" });
     } catch (e) {
-        console.error("Error al registrar paciente:", e.message);
         res.status(500).json({ error: e.message });
     }
 });
+
+// ACTUALIZAR PACIENTE
+app.put('/actualizar-paciente/:id', async (req, res) => {
+    const { id } = req.params;
+    const { error } = await supabase.from('Pacientes').update(req.body).eq('id', id);
+    if (error) return res.status(400).json(error);
+    res.json({ mensaje: "Actualizado correctamente" });
+});
+
+// ELIMINAR PACIENTE (Precaución: Borra al paciente)
+app.delete('/eliminar-paciente/:id', async (req, res) => {
+    const { id } = req.params;
+    const { error } = await supabase.from('Pacientes').delete().eq('id', id);
+    if (error) return res.status(400).json(error);
+    res.json({ mensaje: "Paciente eliminado" });
+});
+
 // DATOS BÁSICOS
 app.get('/datos-paciente/:id', async (req, res) => {
     const { id } = req.params;
@@ -55,6 +66,9 @@ app.get('/datos-paciente/:id', async (req, res) => {
     res.json(data);
 });
 
+
+// --- RUTAS DE EVOLUCIÓN ---
+
 // HISTORIAL CON IMÁGENES
 app.get('/historial-paciente/:id', async (req, res) => {
     const { id } = req.params;
@@ -63,15 +77,11 @@ app.get('/historial-paciente/:id', async (req, res) => {
         .select('*, Imagenes_Evolucion(url_imagen)') 
         .eq('id', id)
         .order('fecha', { ascending: false });
-
-    if (error) {
-        console.error("Error en consulta historial:", error);
-        return res.status(400).json(error);
-    }
+    if (error) return res.status(400).json(error);
     res.json(data || []);
 });
 
-// GUARDAR EVOLUCIÓN
+// GUARDAR EVOLUCIÓN E IMÁGENES
 app.post('/agregar-evolucion', upload.array('imagenes', 5), async (req, res) => {
     const body = req.body;
     try {
@@ -99,7 +109,6 @@ app.post('/agregar-evolucion', upload.array('imagenes', 5), async (req, res) => 
         }
         res.json({ mensaje: "Guardado correctamente en FisioCid" });
     } catch (e) { 
-        console.error("Error al guardar:", e.message);
         res.status(500).json({ error: e.message }); 
     }
 });
@@ -112,6 +121,6 @@ app.delete('/eliminar-evolucion/:id_nota', async (req, res) => {
     res.json({ mensaje: "Eliminado" });
 });
 
-// CONFIGURACIÓN DE PUERTO PARA RENDER (IMPORTANTE)
+// CONFIGURACIÓN DE PUERTO PARA RENDER
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Servidor FisioCid en línea en puerto ${PORT}`));
