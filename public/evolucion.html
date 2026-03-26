@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>FisioCid - Evolución Clínica</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root { --primary: #22c55e; --dark: #1e293b; --bg: #f1f5f9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; color: var(--dark); }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        /* Tarjeta Principal */
+        .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        h2 { text-align: center; margin-bottom: 25px; border-bottom: 3px solid var(--primary); padding-bottom: 10px; }
+
+        /* Grid para redistribuir */
+        .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
+        .full-width { grid-column: span 2; }
+
+        label { font-weight: 700; font-size: 0.9em; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 5px; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 1em; }
+        textarea { resize: vertical; }
+        
+        .eco-field { border-left: 5px solid #16a34a; background: #f0fdf4; }
+        .rx-field { border-left: 5px solid #2563eb; background: #eff6ff; }
+
+        .btn-send { background: var(--primary); color: white; border: none; padding: 18px; width: 100%; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 1.1em; margin-top: 10px; transition: 0.3s; }
+        .btn-send:hover { background: #16a34a; transform: translateY(-2px); }
+
+        /* Estilo del Historial */
+        .sesion-item { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 20px; position: relative; }
+        .gallery { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        .img-thumb { width: 110px; height: 110px; object-fit: cover; border-radius: 8px; border: 2px solid #e2e8f0; }
+        
+        /* Elementos Ocultos que solo se verán en el PDF */
+        #pdf-header-template { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="pdf-header-template">
+    <div style="display: flex; align-items: center; border-bottom: 2px solid #22c55e; padding-bottom: 10px; margin-bottom: 20px;">
+        <img src="logo.jpeg" id="logo-pdf" style="width: 80px; height: auto; margin-right: 20px;">
+        <div>
+            <h1 style="margin: 0; color: #1e293b; font-size: 24px;">FISIOCID</h1>
+            <p style="margin: 2px 0; font-weight: bold; color: #16a34a;">Lic. Cristian M. Cid Espíndola</p>
+            <p style="margin: 0; font-size: 12px; color: #64748b;">Céd. Prof. 13139044</p>
+            <p style="margin: 0; font-size: 11px; color: #64748b;">Avenida Nacional Sur #35 Colonia San Miguel, Santiago Miahuatlán, Puebla.</p>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h2>Registro de Evolución - FisioCid</h2>
+        
+        <div class="grid-row">
+            <div class="full-width">
+                <label>Paciente</label>
+                <input type="text" id="nombre_paciente" readonly style="background:#f8fafc; font-weight:bold;">
+            </div>
+            
+            <div>
+                <label>Fecha de Sesión</label>
+                <input type="date" id="fecha">
+            </div>
+            <div>
+                <label>Nivel de Dolor (EVA 0-10)</label>
+                <input type="number" id="eva" min="0" max="10" placeholder="Ej. 4">
+            </div>
+
+            <div class="full-width">
+                <label>Nota de Evolución Clínica *</label>
+                <textarea id="nota" rows="3" placeholder="Describe el progreso general..."></textarea>
+            </div>
+
+            <div>
+                <label style="color:#16a34a;">Hallazgos Ecografía</label>
+                <textarea id="eco" rows="3" class="eco-field" placeholder="Tejido blando, RUSI..."></textarea>
+            </div>
+            <div>
+                <label style="color:#2563eb;">Hallazgos (RX, RM, TAC)</label>
+                <textarea id="rx" rows="3" class="rx-field" placeholder="Estructura ósea..."></textarea>
+            </div>
+
+            <div class="full-width">
+                <label>Adjuntar Evidencia (Eco, RX, RM)</label>
+                <input type="file" id="fotos" accept="image/*" multiple style="border: 2px dashed #cbd5e1; padding: 20px; background: #fcfcfc;">
+            </div>
+        </div>
+
+        <button class="btn-send" onclick="guardar()">Guardar Registro Clínico</button>
+        <div style="text-align:center; margin-top:15px;">
+            <a href="index.html" style="color:#64748b; text-decoration:none; font-weight:600;">← Volver al Panel de Control</a>
+        </div>
+    </div>
+
+    <div id="historial"></div>
+</div>
+
+<script>
+    const idPac = new URLSearchParams(window.location.search).get('id');
+    document.getElementById('fecha').valueAsDate = new Date();
+
+    async function cargar() {
+        if(!idPac) return;
+        try {
+            const resP = await fetch(`/datos-paciente/${idPac}`);
+            const p = await resP.json();
+            document.getElementById('nombre_paciente').value = `${p.Nombre} ${p.Apellido_Paterno} ${p.Apellido_Materno || ''}`;
+
+            const resH = await fetch(`/historial-paciente/${idPac}`);
+            const data = await resH.json();
+
+            if (!Array.isArray(data)) {
+                document.getElementById('historial').innerHTML = "<p style='color:red;'>Error al conectar con la base de datos.</p>";
+                return;
+            }
+
+            document.getElementById('historial').innerHTML = data.map(s => `
+                <div class="sesion-item" id="reporte-${s.id_nota}">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div style="font-weight:bold; font-size:1.1em; color:var(--dark);">
+                            📅 ${s.fecha} <span style="margin-left:15px; color:#ef4444;">EVA: ${s.escala_dolor}/10</span>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button onclick="generarPDF(${s.id_nota})" style="background:#2563eb; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">📄 Generar Reporte PDF</button>
+                            <button style="color:red; border:none; background:none; cursor:pointer;" onclick="eliminar(${s.id_nota})">🗑️</button>
+                        </div>
+                    </div>
+                    <p style="background:#f8fafc; padding:10px; border-radius:5px; margin:10px 0;">${s.nota_evolucion}</p>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                        ${s.hallazgos_eco ? `<div style="font-size:0.9em; color:#16a34a;"><b>ECO:</b> ${s.hallazgos_eco}</div>` : ''}
+                        ${s.hallazgos_rx ? `<div style="font-size:0.9em; color:#2563eb;"><b>RX:</b> ${s.hallazgos_rx}</div>` : ''}
+                    </div>
+                    <div class="gallery">
+                        ${(s.Imagenes_Evolucion || []).map(i => `<img src="${i.url_imagen}" class="img-thumb" crossorigin="anonymous">`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    async function generarPDF(idNota) {
+        const { jsPDF } = window.jspdf;
+        const elemento = document.getElementById(`reporte-${idNota}`);
+        const botones = elemento.querySelectorAll('button');
+        botones.forEach(b => b.style.display = 'none');
+
+        // Crear un contenedor temporal para el PDF que incluya el encabezado
+        const wrapper = document.createElement('div');
+        wrapper.style.padding = '20px';
+        wrapper.style.background = 'white';
+        wrapper.style.width = '800px';
+        
+        // Clonar el encabezado y el contenido de la sesión
+        const header = document.getElementById('pdf-header-template').cloneNode(true);
+        header.style.display = 'block';
+        const contenido = elemento.cloneNode(true);
+        contenido.style.boxShadow = 'none';
+        contenido.style.border = 'none';
+
+        wrapper.appendChild(header);
+        wrapper.appendChild(contenido);
+        document.body.appendChild(wrapper);
+
+        try {
+            const canvas = await html2canvas(wrapper, { useCORS: true, scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Reporte_FisioCid_${idNota}.pdf`);
+        } catch (error) {
+            console.error(error);
+            alert("Error al generar PDF.");
+        } finally {
+            document.body.removeChild(wrapper);
+            botones.forEach(b => b.style.display = 'inline-block');
+        }
+    }
+
+    async function guardar() {
+        const notaVal = document.getElementById('nota').value.trim();
+        if(!notaVal) return alert("La nota es obligatoria");
+        
+        const fd = new FormData();
+        fd.append('id', idPac);
+        fd.append('fecha', document.getElementById('fecha').value);
+        fd.append('escala_dolor', document.getElementById('eva').value);
+        fd.append('nota_evolucion', notaVal);
+        fd.append('hallazgos_eco', document.getElementById('eco').value);
+        fd.append('hallazgos_rx', document.getElementById('rx').value);
+
+        const files = document.getElementById('fotos').files;
+        for(let i=0; i<files.length; i++) fd.append('imagenes', files[i]);
+
+        const res = await fetch('/agregar-evolucion', { method: 'POST', body: fd });
+        if(res.ok) location.reload();
+    }
+
+    async function eliminar(id) {
+        if(confirm("¿Eliminar este registro permanente?")) {
+            await fetch(`/eliminar-evolucion/${id}`, { method: 'DELETE' });
+            location.reload();
+        }
+    }
+    cargar();
+</script>
+</body>
+</html>

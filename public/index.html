@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>FisioCid - Gestión</title>
+    <style>
+        body { font-family: Arial; padding: 30px; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; }
+        .contenedor { display: flex; gap: 20px; width: 100%; max-width: 1000px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex: 1; }
+        input, textarea { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 14px; }
+        th { background-color: #f2f2f2; }
+        .btn-evo { color: #28a745; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Panel de Control - FisioCid</h1>
+    <div class="contenedor">
+        <div class="card">
+            <h2>Nuevo Paciente</h2>
+            <input type="text" id="Nombre" placeholder="Nombre(s)">
+            <input type="text" id="Apellido_Paterno" placeholder="Apellido Paterno">
+            <input type="text" id="Apellido_Materno" placeholder="Apellido Materno">
+            <input type="text" id="Telefono" placeholder="Teléfono">
+            <textarea id="Diagnostico" placeholder="Diagnóstico Inicial"></textarea>
+            <button onclick="enviarDatos()">Guardar Paciente</button>
+        </div>
+
+        <div class="card">
+            <h2>Buscar Paciente</h2>
+            <input type="text" id="inputBusqueda" placeholder="Buscar por Apellido o Nombre..." onkeyup="buscar()">
+            <table id="tablaResultados">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Paciente</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function enviarDatos() {
+            const datos = {
+                Nombre: document.getElementById('Nombre').value,
+                Apellido_Paterno: document.getElementById('Apellido_Paterno').value,
+                Apellido_Materno: document.getElementById('Apellido_Materno').value,
+                Telefono: document.getElementById('Telefono').value,
+                Diagnostico: document.getElementById('Diagnostico').value
+            };
+            const res = await fetch('/agregar-paciente', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(datos)
+            });
+            if (res.ok) { alert("¡Paciente Registrado!"); location.reload(); }
+        }
+
+        async function buscar() {
+            const consulta = document.getElementById('inputBusqueda').value;
+            if (consulta.length < 2) return;
+            const res = await fetch(`/buscar-paciente?consulta=${consulta}`);
+            const pacientes = await res.json();
+            const cuerpoTabla = document.querySelector('#tablaResultados tbody');
+            cuerpoTabla.innerHTML = ""; 
+            pacientes.forEach(p => {
+                cuerpoTabla.innerHTML += `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${p.Apellido_Paterno} ${p.Nombre}</td>
+                        <td><a class="btn-evo" href="evolucion.html?id=${p.id}">📝 Evolución</a></td>
+                    </tr>`;
+            });
+        }
+    </script>
+</body>
+</html>
