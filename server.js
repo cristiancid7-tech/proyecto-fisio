@@ -10,95 +10,93 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json());
 app.use(express.static('public'));
 
-// --- PACIENTES ---
+// --- RUTAS DE PACIENTES (PANEL DE CONTROL) ---
 
-// Buscar pacientes: Ahora incluye Apellido_Materno para que el buscador sea más preciso
 app.get('/buscar-paciente', async (req, res) => {
     const { consulta } = req.query;
     const { data, error } = await supabase
         .from('Pacientes')
-        .select('*') // Mantenemos el '*' para que el frontend reciba las alertas de alergias
+        .select('*')
         .or(`Nombre.ilike.%${consulta}%,Apellido_Paterno.ilike.%${consulta}%,Apellido_Materno.ilike.%${consulta}%`)
-        .order('Nombre', { ascending: true }); // Ordenado alfabéticamente
-        
+        .order('Nombre', { ascending: true });
     if (error) return res.status(400).json(error);
     res.json(data || []);
 });
 
-// Registrar Paciente: Aseguramos que acepte los nuevos campos de antecedentes
+app.get('/datos-paciente/:id', async (req, res) => {
+    const { id } = req.params;
+    const { data, error } = await supabase
+        .from('Pacientes')
+        .select('Nombre, Apellido_Paterno, Apellido_Materno')
+        .eq('id', id)
+        .single();
+    if (error) return res.status(400).json(error);
+    res.json(data);
+});
+
 app.post('/agregar-paciente', async (req, res) => {
-    // Usamos req.body directamente ya que el frontend envía los nombres de campos exactos
     const { error } = await supabase.from('Pacientes').insert([req.body]);
     if (error) return res.status(400).json(error);
     res.json({ mensaje: "Registrado" });
 });
 
-// Actualizar Ficha: Permite corregir alergias o antecedentes desde el panel
 app.put('/actualizar-paciente/:id', async (req, res) => {
-    const { error } = await supabase
-        .from('Pacientes')
-        .update(req.body)
-        .eq('id', req.params.id);
-        
+    const { error } = await supabase.from('Pacientes').update(req.body).eq('id', req.params.id);
     if (error) return res.status(400).json(error);
     res.json({ mensaje: "Actualizado" });
 });
 
-app.delete('/eliminar-paciente/:id', async (req, res) => {
-    const { error } = await supabase.from('Pacientes').delete().eq('id', req.params.id);
-    if (error) return res.status(400).json(error);
-    res.json({ mensaje: "Eliminado" });
+// --- RUTAS DE RECEPCIÓN Y CITAS ---
+
+app.post('/verificar-llegada', async (req, res) => {
+    const { nombre, telefono } = req.body;
+    const { data, error } = await supabase
+        .from('Pacientes')
+        .select('Nombre')
+        .eq('Telefono', telefono)
+        .ilike('Nombre', `%${nombre}%`)
+        .limit(1);
+    if (error || !data || data.length === 0) return res.status(404).json({ mensaje: "No encontrado" });
+    res.json({ nombre: data[0].Nombre });
 });
 
-// --- EVOLUCIÓN ---
-
-app.get('/datos-paciente/:id', async (req, res) => {
-    const { data, error } = await supabase.from('Pacientes').select('*').eq('id', req.params.id).single();
-    if (error) return res.status(400).json(error);
-    res.json(data);
+app.get('/horarios-ocupados', async (req, res) => {
+    const { fecha } = req.query;
+    const { data, error } = await supabase
+        .from('Pacientes')
+        .select('proxima_cita')
+        .filter('proxima_cita', 'ilike', `${fecha}%`);
+    if (error) return res.status(400).json([]);
+    const ocupados = data.map(d => d.proxima_cita ? d.proxima_cita.split(' ')[1] : null).filter(h => h);
+    res.json(ocupados);
 });
 
-// Obtener historial con imágenes (Relación con tabla Imagenes_Evolucion)
+app.post('/agendar-cita-recepcion', async (req, res) => {
+    const { nombre, telefono, fecha, hora } = req.body;
+    const { data: pac } = await supabase.from('Pacientes').select('id').eq('Telefono', telefono).ilike('Nombre', `%${nombre}%`).single();
+    if (!pac) return res.status(404).json({ error: "Paciente no registrado" });
+    const { error } = await supabase.from('Pacientes').update({ proxima_cita: `${fecha} ${hora}` }).eq('id', pac.id);
+    if (error) return res.status(400).json(error);
+    res.json({ mensaje: "Cita agendada" });
+});
+
+// --- EVOLUCIÓN (ULTRASONIDO/NOTAS) ---
+
 app.get('/historial-paciente/:id', async (req, res) => {
-    const { data, error } = await supabase.from('Evolucion')
-        .select('*, Imagenes_Evolucion(url_imagen)')
-        .eq('id', req.params.id)
+    const { id } = req.params;
+    const { data, error } = await supabase
+        .from('Evolucion')
+        .select('*')
+        .eq('id', id)
         .order('fecha', { ascending: false });
     if (error) return res.status(400).json(error);
     res.json(data || []);
 });
 
-app.delete('/eliminar-nota/:id_nota', async (req, res) => {
-    const { error } = await supabase.from('Evolucion').delete().eq('id_nota', req.params.id_nota);
-    if (error) return res.status(400).json(error);
-    res.json({ mensaje: "Nota eliminada" });
-});
-
-// Actualizar nota existente
-app.put('/actualizar-nota/:id_nota', upload.array('imagenes', 5), async (req, res) => {
-    try {
-        const { error: updErr } = await supabase.from('Evolucion').update({
-            fecha: req.body.fecha,
-            motivo_consulta: req.body.motivo_consulta,
-            escala_dolor: parseInt(req.body.escala_dolor) || 0,
-            nota_evolucion: req.body.nota_evolucion,
-            hallazgos_eco: req.body.hallazgos_eco,
-            hallazgos_rx: req.body.hallazgos_rx,
-            recomendaciones: req.body.recomendaciones,
-            proxima_cita: req.body.proxima_cita
-        }).eq('id_nota', req.params.id_nota);
-
-        if (updErr) throw updErr;
-        res.json({ mensaje: "Actualizado" });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Guardar nueva nota de evolución con soporte para imágenes de ultrasonido/Rx
 app.post('/agregar-evolucion', upload.array('imagenes', 5), async (req, res) => {
     const body = req.body;
     try {
-        // 1. Insertar la nota técnica
-        const { data: nota, error: notaErr } = await supabase.from('Evolucion').insert([{
+        const { data: nota, error: nErr } = await supabase.from('Evolucion').insert([{
             id: parseInt(body.id),
             fecha: body.fecha,
             motivo_consulta: body.motivo_consulta,
@@ -109,24 +107,41 @@ app.post('/agregar-evolucion', upload.array('imagenes', 5), async (req, res) => 
             recomendaciones: body.recomendaciones,
             proxima_cita: body.proxima_cita
         }]).select('id_nota').single();
-
-        if (notaErr) throw notaErr;
-
-        // 2. Si hay imágenes, subirlas al Storage y guardar la referencia
+        if (nErr) throw nErr;
         if (req.files && req.files.length > 0) {
             for (const file of req.files) {
                 const nombre = `${Date.now()}-${file.originalname}`;
                 await supabase.storage.from('imagenes_evolucion').upload(nombre, file.buffer, { contentType: file.mimetype });
-                
-                const { data: urlData } = supabase.storage.from('imagenes_evolucion').getPublicUrl(nombre);
-                await supabase.from('Imagenes_Evolucion').insert([{ 
-                    id_nota: nota.id_nota, 
-                    url_imagen: urlData.publicUrl 
-                }]);
+                const { data: url } = supabase.storage.from('imagenes_evolucion').getPublicUrl(nombre);
+                await supabase.from('Imagenes_Evolucion').insert([{ id_nota: nota.id_nota, url_imagen: url.publicUrl }]);
             }
         }
         res.json({ mensaje: "Guardado" });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/actualizar-nota/:id', upload.array('imagenes', 5), async (req, res) => {
+    const { id } = req.params;
+    const body = req.body;
+    const { error } = await supabase.from('Evolucion').update({
+        fecha: body.fecha,
+        motivo_consulta: body.motivo_consulta,
+        escala_dolor: parseInt(body.escala_dolor),
+        nota_evolucion: body.nota_evolucion,
+        hallazgos_eco: body.hallazgos_eco,
+        hallazgos_rx: body.hallazgos_rx,
+        recomendaciones: body.recomendaciones,
+        proxima_cita: body.proxima_cita
+    }).eq('id_nota', id);
+    if (error) return res.status(400).json(error);
+    res.json({ mensaje: "Actualizado" });
+});
+
+app.delete('/eliminar-nota/:id', async (req, res) => {
+    const { id } = req.params;
+    const { error } = await supabase.from('Evolucion').delete().eq('id_nota', id);
+    if (error) return res.status(400).json(error);
+    res.json({ mensaje: "Eliminado" });
 });
 
 const PORT = process.env.PORT || 3000;

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recepción FisioCid</title>
+    <style>
+        :root { --primary: #22c55e; --accent: #2563eb; --bg: #f1f5f9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .btn { background: var(--primary); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-blue { background: var(--accent); }
+        h2, h3 { color: #1e293b; margin: 10px 0; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <img src="logo.jpeg" alt="FisioCid" style="width: 80px;">
+    <h2>¡Bienvenido!</h2>
+    <input type="text" id="nom" placeholder="Tu Nombre">
+    <input type="tel" id="tel" placeholder="WhatsApp (10 dígitos)">
+    <button class="btn" onclick="llegada()">Confirmar Llegada</button>
+
+    <div style="margin-top: 25px; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
+        <h3>Agendar Próxima Cita</h3>
+        <input type="date" id="fec" onchange="actualizarHoras()">
+        <select id="hor"><option value="">Selecciona una fecha</option></select>
+        <button class="btn btn-blue" onclick="cita()">Reservar Espacio</button>
+    </div>
+</div>
+
+<script>
+    async function actualizarHoras() {
+        const fecha = document.getElementById('fec').value;
+        const sel = document.getElementById('hor');
+        if(!fecha) return;
+
+        sel.innerHTML = '<option>Cargando...</option>';
+        let ocupados = [];
+        try {
+            const res = await fetch(`/horarios-ocupados?fecha=${fecha}`);
+            if(res.ok) ocupados = await res.json();
+        } catch(e) { console.log("Error de red"); }
+
+        let html = '<option value="">-- Elige Hora --</option>';
+        for(let h = 16; h <= 20; h++) {
+            ["00", "30"].forEach(m => {
+                if(h === 20 && m === "30") return; // Última cita 8 PM
+                const hora = `${h}:${m}`;
+                const isOc = ocupados.includes(hora);
+                html += `<option value="${hora}" ${isOc ? 'disabled style="color:red"' : ''}>${hora} hrs ${isOc ? '(Lleno)' : ''}</option>`;
+            });
+        }
+        sel.innerHTML = html;
+    }
+
+    async function llegada() {
+        const res = await fetch('/verificar-llegada', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nombre:document.getElementById('nom').value, telefono:document.getElementById('tel').value}) });
+        const d = await res.json();
+        alert(res.ok ? `✅ Hola ${d.nombre}, toma asiento.` : "❌ No te encontramos.");
+    }
+
+    async function cita() {
+        const b = { nombre:document.getElementById('nom').value, telefono:document.getElementById('tel').value, fecha:document.getElementById('fec').value, hora:document.getElementById('hor').value };
+        if(!b.nombre || !b.fecha || !b.hora) return alert("Llena todos los campos");
+        const res = await fetch('/agendar-cita-recepcion', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b) });
+        alert(res.ok ? "✅ Cita agendada." : "❌ Error al agendar.");
+        if(res.ok) location.reload();
+    }
+</script>
+</body>
+</html>
