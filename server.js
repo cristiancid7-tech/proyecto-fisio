@@ -22,6 +22,27 @@ app.get('/buscar-paciente', async (req, res) => {
     res.json(data || []);
 });
 
+// NUEVA RUTA: GUARDAR PACIENTE NUEVO
+app.post('/agregar-paciente', async (req, res) => {
+    const { Nombre, Apellido_Paterno, Apellido_Materno, Telefono, Diagnostico } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('Pacientes')
+            .insert([{ 
+                Nombre, 
+                Apellido_Paterno, 
+                Apellido_Materno, 
+                Telefono, 
+                Diagnostico 
+            }]);
+
+        if (error) throw error;
+        res.json({ mensaje: "¡Paciente Registrado en FisioCid!" });
+    } catch (e) {
+        console.error("Error al registrar paciente:", e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
 // DATOS BÁSICOS
 app.get('/datos-paciente/:id', async (req, res) => {
     const { id } = req.params;
