@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const multer = require('multer');
 const app = express();
 
+// Conexión a Supabase usando las variables de entorno de Render
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -33,7 +34,7 @@ app.get('/datos-paciente/:id', async (req, res) => {
     res.json(data);
 });
 
-// HISTORIAL CON IMÁGENES (CORREGIDO)
+// HISTORIAL CON IMÁGENES
 app.get('/historial-paciente/:id', async (req, res) => {
     const { id } = req.params;
     const { data, error } = await supabase
@@ -75,10 +76,14 @@ app.post('/agregar-evolucion', upload.array('imagenes', 5), async (req, res) => 
                 await supabase.from('Imagenes_Evolucion').insert([{ id_nota: nota.id_nota, url_imagen: urlData.publicUrl }]);
             }
         }
-        res.json({ mensaje: "Guardado" });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        res.json({ mensaje: "Guardado correctamente en FisioCid" });
+    } catch (e) { 
+        console.error("Error al guardar:", e.message);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
+// ELIMINAR EVOLUCIÓN
 app.delete('/eliminar-evolucion/:id_nota', async (req, res) => {
     const { id_nota } = req.params;
     const { error } = await supabase.from('Evolucion').delete().eq('id_nota', id_nota);
@@ -86,4 +91,6 @@ app.delete('/eliminar-evolucion/:id_nota', async (req, res) => {
     res.json({ mensaje: "Eliminado" });
 });
 
-app.listen(3000, () => console.log("🚀 Servidor FisioCid Corregido en puerto 3000"));
+// CONFIGURACIÓN DE PUERTO PARA RENDER (IMPORTANTE)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Servidor FisioCid en línea en puerto ${PORT}`));
