@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FisioCid - Panel de Control</title>
+    <style>
+        :root { --primary: #22c55e; --dark: #1e293b; --bg: #f1f5f9; --accent: #2563eb; --red: #ef4444; --orange: #f59e0b; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; color: var(--dark); margin: 0; }
+        
+        .main-layout { display: flex; gap: 20px; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
+        .col-registro { flex: 1; position: sticky; top: 20px; }
+        .col-busqueda { flex: 1.5; }
+
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1, h2 { color: var(--dark); margin-top: 0; }
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        
+        .input-alergia { border-left: 5px solid var(--red) !important; background: #fef2f2; font-weight: bold; }
+        .input-heredo { border-left: 5px solid var(--accent) !important; }
+        .input-personales { border-left: 5px solid var(--orange) !important; }
+
+        .btn-principal { background: var(--primary); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1em; transition: 0.3s; }
+        .btn-principal:hover { opacity: 0.9; }
+        
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f8fafc; color: #64748b; font-size: 0.8em; text-transform: uppercase; }
+        
+        .modo-edicion { border: 2px solid #f59e0b !important; background: #fffbeb; }
+
+        /* Estilos para el menú de contacto */
+        .dropdown-contacto { display: none; position: absolute; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; min-width: 160px; margin-top: 5px; overflow: hidden; }
+        .dropdown-contacto a { display: block; padding: 12px; text-decoration: none; color: #1e293b; font-size: 0.9em; border-bottom: 1px solid #eee; transition: background 0.2s; }
+        .dropdown-contacto a:hover { background: #f8fafc; }
+
+        @media (max-width: 850px) {
+            .main-layout { flex-direction: column; }
+            .col-registro { position: static; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div style="text-align: center; margin-bottom: 30px;">
+    <img src="logo.jpeg" alt="FisioCid" style="width: 110px;">
+    <h1 style="margin: 5px 0;">Lft. Cristian M. Cid Espindola</h1>
+    <p style="color: #64748b; margin: 0;"><b>Ced. Profesional 13139044</b> | Santiago Miahuatlán, Puebla</p>
+</div>
+
+<div class="main-layout">
+    <div class="col-registro">
+        <div class="card" id="form-container">
+            <h2 id="titulo-form">Registro de Paciente</h2>
+            <input type="text" id="Nombre" placeholder="Nombre(s) *">
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="Apellido_Paterno" placeholder="Ap. Paterno *">
+                <input type="text" id="Apellido_Materno" placeholder="Ap. Materno">
+            </div>
+            <input type="tel" id="Telefono" placeholder="Telefono">
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <input type="text" id="alergias" class="input-alergia" placeholder="⚠️ Alergias (Metales, látex, etc.)">
+            <textarea id="ant_heredofamiliares" class="input-heredo" placeholder="👨‍👩‍👧 Antecedentes Heredofamiliares (Diabetes, AR, HTA...)" rows="2"></textarea>
+            <textarea id="ant_personales" class="input-personales" placeholder="🦴 Antecedentes Personales (Fracturas, cirugías, prótesis...)" rows="2"></textarea>
+            <textarea id="Diagnostico" placeholder="📋 Diagnóstico Inicial" rows="2"></textarea>
+            <button class="btn-principal" id="btn-accion" onclick="enviarDatos()">Guardar Paciente</button>
+            <button id="btn-cancelar" onclick="cancelarEdicion()" style="display:none; background:none; border:none; color:red; width:100%; margin-top:10px; cursor:pointer; font-weight:bold;">✖ Cancelar Edición</button>
+        </div>
+    </div>
+
+    <div class="col-busqueda">
+        <div class="card">
+            <h2>Panel de Búsqueda</h2>
+            <input type="text" id="busqueda" placeholder="🔍 Escribe nombre o apellido..." onkeyup="buscar()" style="border-radius: 25px; padding-left: 20px; border: 2px solid var(--primary);">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Información del Paciente</th>
+                        <th style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoTabla"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+async function buscar() {
+    const consulta = document.getElementById('busqueda').value;
+    if (consulta.length < 2) {
+        document.getElementById('cuerpoTabla').innerHTML = "";
+        return;
+    }
+    const res = await fetch(`/buscar-paciente?consulta=${consulta}`);
+    const pacientes = await res.json();
+    const tabla = document.getElementById('cuerpoTabla');
+    
+    tabla.innerHTML = pacientes.map(p => {
+        const nombreFull = `${p.Nombre} ${p.Apellido_Paterno} ${p.Apellido_Materno || ''}`.toUpperCase();
+        // Formateamos el teléfono para que se vea limpio (ej: 238 123 4567)
+        const telFormateado = p.Telefono ? p.Telefono.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3') : 'Sin número';
+
+        return `
+        <tr style="border-left: ${p.alergias && p.alergias.toLowerCase() !== 'ninguna' ? '8px solid var(--red)' : '8px solid var(--primary)'};">
+            <td style="padding: 15px;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <b style="font-size: 1.1em; color: var(--dark);">${nombreFull}</b>
+                    
+                    <a href="tel:${p.Telefono}" style="text-decoration: none; color: #64748b; font-size: 0.85em; width: fit-content;" title="Llamar ahora">
+                        📱 ${telFormateado}
+                    </a>
+
+                    <div style="display: flex; gap: 15px; margin-top: 8px;">
+                        <small style="color: ${p.alergias ? 'var(--red)' : '#64748b'}; font-weight: ${p.alergias ? 'bold' : 'normal'}">
+                            ⚠️ Alergias: ${p.alergias || 'Ninguna'}
+                        </small>
+                        <small style="color: #64748b;">🦴 Ant: ${p.ant_personales || 'Sin registro'}</small>
+                    </div>
+                </div>
+            </td>
+            <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+                    
+                    <div style="position: relative; display: inline-block;">
+                        <button onclick="toggleMenu('menu-${p.id}')" style="background: var(--accent); color: white; border: none; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 1.1em;">📞</button>
+                        <div id="menu-${p.id}" class="dropdown-contacto">
+                            <a href="tel:${p.Telefono}">📱 Llamada Normal</a>
+                            <a href="https://wa.me/52${p.Telefono}" target="_blank" style="color: #16a34a; font-weight: bold;">💬 WhatsApp</a>
+                        </div>
+                    </div>
+
+                    <a href="evolucion.html?id=${p.id}" style="background: var(--primary); color: white; padding: 10px 12px; border-radius: 8px; text-decoration: none; font-size: 1.1em;">📝</a>
+                    
+                    <button onclick="prepararEdicion(${JSON.stringify(p).replace(/"/g, '&quot;')})" style="background: var(--orange); color: white; border: none; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 1.1em;">✏️</button>
+                    
+                    <button onclick="eliminarPaciente(${p.id})" style="background: var(--red); color: white; border: none; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 1.1em;">🗑️</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+    function toggleMenu(id) {
+        const menu = document.getElementById(id);
+        const isVisible = menu.style.display === 'block';
+        document.querySelectorAll('.dropdown-contacto').forEach(m => m.style.display = 'none');
+        menu.style.display = isVisible ? 'none' : 'block';
+    }
+
+    // Cerrar menús al hacer clic fuera
+    window.onclick = function(event) {
+        if (!event.target.matches('button')) {
+            document.querySelectorAll('.dropdown-contacto').forEach(m => m.style.display = 'none');
+        }
+    }
+
+    async function enviarDatos() {
+        const datos = obtenerDatosForm();
+        if(!datos.Nombre || !datos.Apellido_Paterno) return alert("Faltan datos obligatorios");
+        const res = await fetch('/agregar-paciente', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+        });
+        if (res.ok) { alert("¡Paciente registrado!"); limpiarForm(); }
+    }
+
+    function prepararEdicion(p) {
+        document.getElementById('Nombre').value = p.Nombre;
+        document.getElementById('Apellido_Paterno').value = p.Apellido_Paterno;
+        document.getElementById('Apellido_Materno').value = p.Apellido_Materno || '';
+        document.getElementById('Telefono').value = p.Telefono || '';
+        document.getElementById('Diagnostico').value = p.Diagnostico || '';
+        document.getElementById('alergias').value = p.alergias || '';
+        document.getElementById('ant_heredofamiliares').value = p.ant_heredofamiliares || '';
+        document.getElementById('ant_personales').value = p.ant_personales || '';
+        document.getElementById('titulo-form').innerText = "Editando Datos";
+        document.querySelectorAll('#form-container input, #form-container textarea').forEach(el => el.classList.add('modo-edicion'));
+        const btn = document.getElementById('btn-accion');
+        btn.innerText = "Actualizar Información";
+        btn.style.background = "var(--accent)";
+        btn.onclick = () => actualizarPaciente(p.id);
+        document.getElementById('btn-cancelar').style.display = "block";
+    }
+
+    async function actualizarPaciente(id) {
+        const res = await fetch(`/actualizar-paciente/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(obtenerDatosForm())
+        });
+        if (res.ok) { alert("Información actualizada"); cancelarEdicion(); buscar(); }
+    }
+
+   async function eliminarPaciente(id) {
+    if (confirm("¿Estás seguro? Se borrará el historial y las citas de este paciente.")) {
+        const res = await fetch(`/eliminar-paciente/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            alert("Paciente eliminado correctamente");
+            buscar(); // Refresca la lista
+        } else {
+            alert("No se pudo eliminar. Verifica si tiene citas pendientes.");
+        }
+    }
+}
+    function obtenerDatosForm() {
+        return {
+            Nombre: document.getElementById('Nombre').value.trim(),
+            Apellido_Paterno: document.getElementById('Apellido_Paterno').value.trim(),
+            Apellido_Materno: document.getElementById('Apellido_Materno').value.trim(),
+            Telefono: document.getElementById('Telefono').value.trim(),
+            Diagnostico: document.getElementById('Diagnostico').value.trim(),
+            alergias: document.getElementById('alergias').value.trim(),
+            ant_heredofamiliares: document.getElementById('ant_heredofamiliares').value.trim(),
+            ant_personales: document.getElementById('ant_personales').value.trim()
+        };
+    }
+
+    function cancelarEdicion() {
+        limpiarForm();
+        document.getElementById('titulo-form').innerText = "Registro de Paciente";
+        document.querySelectorAll('.modo-edicion').forEach(el => el.classList.remove('modo-edicion'));
+        const btn = document.getElementById('btn-accion');
+        btn.innerText = "Guardar Paciente";
+        btn.style.background = "var(--primary)";
+        btn.onclick = enviarDatos;
+        document.getElementById('btn-cancelar').style.display = "none";
+    }
+
+    function limpiarForm() {
+        document.querySelectorAll('#form-container input, #form-container textarea').forEach(el => el.value = "");
+    }
+</script>
+</body>
+</html>

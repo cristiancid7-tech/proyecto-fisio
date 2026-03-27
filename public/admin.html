@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Control - FisioCid</title>
+    <style>
+        :root { 
+            --primary: #2563eb; 
+            --danger: #ef4444; 
+            --bg: #f8fafc; 
+            --success: #16a34a; 
+            --warning: #f59e0b; 
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 1000px; margin: 0 auto; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; color: #475569; }
+        .btn { border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; font-size: 13px; margin: 2px; transition: 0.2s; }
+        .btn:hover { opacity: 0.8; }
+        .btn-confirm { background: var(--success); }
+        .btn-reject { background: var(--warning); }
+        .btn-delete { background: var(--danger); }
+        .fecha-selector { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px; }
+        .estado-pend { color: var(--warning); font-weight: bold; }
+        .estado-conf { color: var(--success); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2>📅 Agenda de Citas - FisioCid</h2>
+    <input type="date" id="filtro-fecha" class="fecha-selector" onchange="cargarCitasAdmin()">
+</div>
+
+<div class="card">
+    <table id="tabla-citas">
+        <thead>
+            <tr>
+                <th>Hora</th>
+                <th>Paciente</th>
+                <th>WhatsApp</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="cuerpo-tabla">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    // 1. Ponemos la fecha de hoy por defecto
+    document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+
+    async function cargarCitasAdmin() {
+        const fecha = document.getElementById('filtro-fecha').value;
+        try {
+            const res = await fetch(`/ver-agenda?fecha=${fecha}`);
+            const citas = await res.json();
+            
+            let html = '';
+            citas.forEach(c => {
+                const p = c.Pacientes;
+                const horaF = c.hora.slice(0,5);
+                const claseEstado = c.estado === 'PENDIENTE' ? 'estado-pend' : 'estado-conf';
+                
+                html += `
+                    <tr>
+                        <td><b>${horaF} hrs</b></td>
+                        <td>${p.Nombre} ${p.Apellido_Paterno}</td>
+                        <td>${p.Telefono}</td>
+                        <td><span class="${claseEstado}">${c.estado}</span></td>
+                        <td>
+                            <button class="btn btn-confirm" onclick="confirmarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Confirmar</button>
+                            <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Rechazar</button>
+                            <button class="btn btn-delete" onclick="eliminarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('cuerpo-tabla').innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding: 20px;">No hay citas para este día.</td></tr>';
+        } catch (error) {
+            console.error("Error al cargar la agenda:", error);
+        }
+    }
+
+    // --- FUNCIONES DE GESTIÓN Y WHATSAPP ---
+
+    async function confirmarCita(id, nombre, telefono, fecha, hora) {
+        const mensaje = `¡Hola ${nombre}! Te confirma el Ft. Cristian de FisioCid. Tu cita del ${fecha} a las ${hora} hrs ha sido confirmada. ¡Te esperamos!`;
+        window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    }
+
+    async function rechazarCita(id, nombre, telefono, fecha, hora) {
+        const motivo = prompt("Motivo del rechazo:", "el horario ya está ocupado");
+        if (motivo === null) return;
+
+        const res = await fetch(`/eliminar-cita/${id}`, { method: 'DELETE' });
+        if(res.ok) {
+            const mensaje = `Hola ${nombre}, te habla el Ft. Cristian de FisioCid. No podremos confirmar tu solicitud de cita del ${fecha} a las ${hora} porque ${motivo}.`;
+            window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
+            cargarCitasAdmin(); 
+        }
+    }
+
+    async function eliminarCita(id, nombre, telefono, fecha, hora) {
+        if(!confirm(`¿Seguro que quieres eliminar la cita de ${nombre}?`)) return;
+        
+        const res = await fetch(`/eliminar-cita/${id}`, { method: 'DELETE' });
+        if(res.ok) {
+            const mensaje = `Hola ${nombre}, tu cita en FisioCid para el día ${fecha} a las ${hora} ha sido cancelada.`;
+            window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
+            cargarCitasAdmin();
+        }
+    }
+
+    // 2. Cargamos los datos al abrir la página
+    cargarCitasAdmin();
+
+</script>
+</body>
+</html>

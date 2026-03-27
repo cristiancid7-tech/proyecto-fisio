@@ -5,68 +5,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recepción FisioCid</title>
     <style>
-        :root { --primary: #22c55e; --accent: #2563eb; --bg: #f1f5f9; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        :root { --primary: #22c55e; --accent: #2563eb; --bg: #f8fafc; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { display: grid; grid-template-columns: 1fr 320px; gap: 20px; max-width: 1050px; width: 100%; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        
+        /* Fuerza mayúsculas visuales mientras el paciente escribe */
+        input[type="text"], textarea { text-transform: uppercase; }
+        
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        .btn { background: var(--primary); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-blue { background: var(--accent); }
-        h2, h3 { color: #1e293b; margin: 10px 0; }
+        label { font-size: 0.9em; color: #64748b; font-weight: bold; margin-left: 5px; }
+        .grid-names { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-send { background: var(--accent); color: white; border: none; padding: 18px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 18px; margin-top: 20px; transition: 0.3s; }
+        .btn-send:hover { opacity: 0.9; transform: translateY(-2px); }
+        .side-panel { background: white; padding: 20px; border-radius: 15px; border: 1px solid #e2e8f0; height: fit-content; }
+        .slot { padding: 10px; margin: 5px 0; border-radius: 6px; display: flex; justify-content: space-between; font-size: 0.9em; font-weight: bold; }
+        .libre { background: #dcfce7; color: #16a34a; }
+        .ocupado { background: #fee2e2; color: #ef4444; text-decoration: line-through; opacity: 0.7; }
+        .alert-domingo { background: #fff7ed; color: #c2410c; padding: 12px; border-radius: 8px; border: 1px solid #fed7aa; display: none; margin-bottom: 10px; font-weight: bold; font-size: 0.9em; }
+        
+        @media (max-width: 850px) {
+            .container { grid-template-columns: 1fr; }
+            .side-panel { order: 2; }
+        }
     </style>
 </head>
 <body>
-<div class="card">
-    <img src="logo.jpeg" alt="FisioCid" style="width: 80px;">
-    <h2>¡Bienvenido!</h2>
-    <input type="text" id="nom" placeholder="Tu Nombre">
-    <input type="tel" id="tel" placeholder="WhatsApp (10 dígitos)">
-    <button class="btn" onclick="llegada()">Confirmar Llegada</button>
 
-    <div style="margin-top: 25px; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
-        <h3>Agendar Próxima Cita</h3>
-        <input type="date" id="fec" onchange="actualizarHoras()">
-        <select id="hor"><option value="">Selecciona una fecha</option></select>
-        <button class="btn btn-blue" onclick="cita()">Reservar Espacio</button>
+<div class="container" id="main-content">
+    <div class="card">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="logo.jpeg" alt="FisioCid" style="width: 80px; margin-bottom: 10px;">
+            <h2 style="margin:0; color:#1e293b;">Registro de Citas - FisioCid</h2>
+            <p style="font-size: 0.85em; color: #64748b;">Santiago Miahuatlán, Puebla</p>
+        </div>
+        
+        <label>Nombre(s):</label>
+        <input type="text" id="nom" placeholder="Escribe tu nombre">
+        
+        <div class="grid-names">
+            <div><label>Ap. Paterno:</label><input type="text" id="ap" placeholder="Apellido paterno"></div>
+            <div><label>Ap. Materno:</label><input type="text" id="am" placeholder="Apellido materno"></div>
+        </div>
+
+        <div class="grid-names">
+            <div><label>F. Nacimiento:</label><input type="date" id="fnac"></div>
+            <div><label>Telefono:</label><input type="tel" id="tel" placeholder="10 dígitos"></div>
+        </div>
+
+        <hr style="margin:25px 0; border:0; border-top: 1px solid #eee;">
+
+        <label>Selecciona la fecha de tu cita:</label>
+        <input type="date" id="fec" onchange="actualizarVista()">
+        
+        <div id="aviso-dom" class="alert-domingo">⚠️ Nota: Las citas en domingo requieren confirmación de pago previa.</div>
+
+        <label>Horario disponible:</label>
+        <select id="hor"><option value="">Selecciona primero un día</option></select>
+
+        <button class="btn-send" id="btn-agendar" onclick="procesarCita()">Agendar mi Sesión</button>
+    </div>
+
+    <div class="side-panel">
+        <h3 style="margin-top:0; color: var(--accent);">Disponibilidad</h3>
+        <p style="font-size: 0.8em; color: #64748b; margin-bottom: 15px;">Horarios en tiempo real para el día seleccionado:</p>
+        <div id="lista-slots"><p style="color:gray; font-size:0.9em;">Selecciona una fecha en el calendario.</p></div>
     </div>
 </div>
 
 <script>
-    async function actualizarHoras() {
-        const fecha = document.getElementById('fec').value;
-        const sel = document.getElementById('hor');
-        if(!fecha) return;
+    document.getElementById('fec').min = new Date().toISOString().split("T")[0];
+    const MI_WHATSAPP = "522383885291"; 
 
-        sel.innerHTML = '<option>Cargando...</option>';
-        let ocupados = [];
+    // Esta función se activa en cuanto tocas el calendario
+    async function actualizarVista() {
+        const fec = document.getElementById('fec').value;
+        if(!fec) return;
+
+        // 1. Mostrar/Ocultar aviso de domingo de inmediato
+        const fechaObj = new Date(fec + 'T00:00:00');
+        const esDom = fechaObj.getDay() === 0;
+        document.getElementById('aviso-dom').style.display = esDom ? 'block' : 'none';
+
+        // 2. Definir tus horarios de FisioCid (4:00 PM a 8:30 PM)
+        const horariosBase = [
+            "16:00", "16:30", "17:00", "17:30", "18:00", 
+            "18:30", "19:00", "19:30", "20:00", "20:30"
+        ];
+
         try {
-            const res = await fetch(`/horarios-ocupados?fecha=${fecha}`);
-            if(res.ok) ocupados = await res.json();
-        } catch(e) { console.log("Error de red"); }
-
-        let html = '<option value="">-- Elige Hora --</option>';
-        for(let h = 16; h <= 20; h++) {
-            ["00", "30"].forEach(m => {
-                if(h === 20 && m === "30") return; // Última cita 8 PM
-                const hora = `${h}:${m}`;
-                const isOc = ocupados.includes(hora);
-                html += `<option value="${hora}" ${isOc ? 'disabled style="color:red"' : ''}>${hora} hrs ${isOc ? '(Lleno)' : ''}</option>`;
-            });
+            // Intentamos obtener los ocupados del servidor
+            const res = await fetch(`/horarios-ocupados?fecha=${fec}`);
+            const ocupados = res.ok ? await res.json() : [];
+            renderizarHorarios(horariosBase, ocupados);
+        } catch (e) {
+            console.warn("Servidor no disponible, cargando horarios por defecto.");
+            // Si el servidor falla (como en tus capturas), cargamos todos como libres
+            renderizarHorarios(horariosBase, []);
         }
-        sel.innerHTML = html;
     }
 
-    async function llegada() {
-        const res = await fetch('/verificar-llegada', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nombre:document.getElementById('nom').value, telefono:document.getElementById('tel').value}) });
-        const d = await res.json();
-        alert(res.ok ? `✅ Hola ${d.nombre}, toma asiento.` : "❌ No te encontramos.");
+    function renderizarHorarios(todos, ocupados) {
+        let sHtml = '<option value="">-- Elige una hora --</option>';
+        let lHtml = '';
+        
+        todos.forEach(hora => {
+            const isOc = ocupados.includes(hora);
+            sHtml += `<option value="${hora}" ${isOc ? 'disabled' : ''}>${hora} hrs ${isOc ? '(Ocupado)' : ''}</option>`;
+            lHtml += `<div class="slot ${isOc ? 'ocupado' : 'libre'}">
+                        <span>${hora} hrs</span> 
+                        <span>${isOc ? 'OCUPADO' : 'LIBRE'}</span>
+                      </div>`;
+        });
+        
+        document.getElementById('hor').innerHTML = sHtml;
+        document.getElementById('lista-slots').innerHTML = lHtml;
     }
 
-    async function cita() {
-        const b = { nombre:document.getElementById('nom').value, telefono:document.getElementById('tel').value, fecha:document.getElementById('fec').value, hora:document.getElementById('hor').value };
-        if(!b.nombre || !b.fecha || !b.hora) return alert("Llena todos los campos");
-        const res = await fetch('/agendar-cita-recepcion', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b) });
-        alert(res.ok ? "✅ Cita agendada." : "❌ Error al agendar.");
-        if(res.ok) location.reload();
+    async function procesarCita() {
+        const btn = document.getElementById('btn-agendar');
+        const datos = {
+            nombre: document.getElementById('nom').value.trim().toUpperCase(),
+            ap: document.getElementById('ap').value.trim().toUpperCase(),
+            am: document.getElementById('am').value.trim().toUpperCase(),
+            fecha_nac: document.getElementById('fnac').value,
+            tel: document.getElementById('tel').value.trim(),
+            fecha: document.getElementById('fec').value,
+            hora: document.getElementById('hor').value
+        };
+
+        if(!datos.nombre || !datos.ap || !datos.fecha_nac || !datos.tel || !datos.fecha || !datos.hora) {
+            return alert("Por favor, rellena todos los campos.");
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Agendando...";
+
+       try {
+            const res = await fetch('/registro-recepcion-completo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(datos)
+            });
+
+            if(res.ok) {
+                // 1. Preparamos el mensaje de WhatsApp
+                const mensajeWA = `Hola FisioCid, soy ${datos.nombre} ${datos.ap}. Acabo de agendar una cita para el día ${datos.fecha} a las ${datos.hora} hrs.`;
+                const url = `https://wa.me/522383885291?text=${encodeURIComponent(mensajeWA)}`;
+                
+                // 2. Avisamos al paciente
+                alert("✅ ¡Cita registrada con éxito! Te redireccionaremos a WhatsApp para confirmar.");
+                
+                // 3. Abrimos WhatsApp en una pestaña nueva
+                window.open(url, '_blank');
+
+                // 4. Refrescamos la página para que el horario ya aparezca ocupado
+                location.reload();
+            } else {
+                alert("Hubo un detalle al guardar. Inténtalo de nuevo.");
+            }
+        } catch (e) {
+            alert("Error de conexión con el servidor local.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Agendar mi Sesión";
+        }
     }
 </script>
 </body>
