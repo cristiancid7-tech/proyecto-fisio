@@ -34,7 +34,24 @@
     <h2>📅 Agenda de Citas - FisioCid</h2>
     <input type="date" id="filtro-fecha" class="fecha-selector" onchange="cargarCitasAdmin()">
 </div>
-
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>📅 Citas de la Semana</h2>
+        <button onclick="cargarCitasSemana()" style="background: none; border: none; cursor: pointer; font-size: 1.2em;">🔄</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha / Hora</th>
+                <th>Paciente</th>
+                <th>Motivo</th>
+                <th style="text-align: right;">Acción</th>
+            </tr>
+        </thead>
+        <tbody id="tablaSemana">
+            </tbody>
+    </table>
+</div>
 <div class="card">
     <table id="tabla-citas">
         <thead>
@@ -58,21 +75,23 @@
     async function cargarCitasAdmin() {
         const fecha = document.getElementById('filtro-fecha').value;
         try {
+            // Buscamos las citas de la fecha seleccionada
             const res = await fetch(`/ver-agenda?fecha=${fecha}`);
             const citas = await res.json();
             
             let html = '';
             citas.forEach(c => {
                 const p = c.Pacientes;
-                const horaF = c.hora.slice(0,5);
-                const claseEstado = c.estado === 'PENDIENTE' ? 'estado-pend' : 'estado-conf';
+                const horaF = c.hora ? c.hora.slice(0,5) : '--:--';
+                const estadoActual = c.estado || 'PENDIENTE';
+                const claseEstado = estadoActual === 'PENDIENTE' ? 'estado-pend' : 'estado-conf';
                 
                 html += `
                     <tr>
                         <td><b>${horaF} hrs</b></td>
                         <td>${p.Nombre} ${p.Apellido_Paterno}</td>
                         <td>${p.Telefono}</td>
-                        <td><span class="${claseEstado}">${c.estado}</span></td>
+                        <td><span class="${claseEstado}">${estadoActual}</span></td>
                         <td>
                             <button class="btn btn-confirm" onclick="confirmarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Confirmar</button>
                             <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Rechazar</button>
@@ -87,11 +106,18 @@
         }
     }
 
-    // --- FUNCIONES DE GESTIÓN Y WHATSAPP ---
+    // --- FUNCIONES DE WHATSAPP ---
+    function enviarWhatsApp(telefono, mensaje) {
+        // Limpiamos el teléfono por si tiene espacios o guiones
+        const telLimpio = telefono.replace(/\D/g,'');
+        // Agregamos el prefijo de México si no lo tiene
+        const link = `https://wa.me/${telLimpio.length === 10 ? '52' + telLimpio : telLimpio}?text=${encodeURIComponent(mensaje)}`;
+        window.open(link, '_blank');
+    }
 
     async function confirmarCita(id, nombre, telefono, fecha, hora) {
         const mensaje = `¡Hola ${nombre}! Te confirma el Ft. Cristian de FisioCid. Tu cita del ${fecha} a las ${hora} hrs ha sido confirmada. ¡Te esperamos!`;
-        window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        enviarWhatsApp(telefono, mensaje);
     }
 
     async function rechazarCita(id, nombre, telefono, fecha, hora) {
@@ -100,8 +126,8 @@
 
         const res = await fetch(`/eliminar-cita/${id}`, { method: 'DELETE' });
         if(res.ok) {
-            const mensaje = `Hola ${nombre}, te habla el Ft. Cristian de FisioCid. No podremos confirmar tu solicitud de cita del ${fecha} a las ${hora} porque ${motivo}.`;
-            window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
+            const mensaje = `Hola ${nombre}, te habla el Ft. Cristian de FisioCid. No podremos confirmar tu cita del ${fecha} a las ${hora} porque ${motivo}.`;
+            enviarWhatsApp(telefono, mensaje);
             cargarCitasAdmin(); 
         }
     }
@@ -111,15 +137,12 @@
         
         const res = await fetch(`/eliminar-cita/${id}`, { method: 'DELETE' });
         if(res.ok) {
-            const mensaje = `Hola ${nombre}, tu cita en FisioCid para el día ${fecha} a las ${hora} ha sido cancelada.`;
-            window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
             cargarCitasAdmin();
         }
     }
 
-    // 2. Cargamos los datos al abrir la página
+    // Cargamos los datos al iniciar
     cargarCitasAdmin();
-
 </script>
 </body>
 </html>

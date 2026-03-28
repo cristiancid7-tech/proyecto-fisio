@@ -147,13 +147,51 @@ app.delete('/eliminar-nota/:id', async (req, res) => {
     res.json({ mensaje: "Eliminado" });
 });
 
-app.post('/registro-recepcion-completo', async (req, res) => {
+app.get('/ver-agenda', async (req, res) => {
+    // Aceptamos tanto 'fecha' como 'fecha_busqueda' para evitar errores
+    const fechaParaFiltrar = req.query.fecha || req.query.fecha_busqueda;
 
-    const { nombre, ap, am, fecha_nac, tel, fecha, hora, ocupacion } = req.body; 
+    if (!fechaParaFiltrar) {
+        return res.status(400).json({ error: "Falta la fecha para consultar la agenda" });
+    }
 
     try {
-        // ... búsqueda de paciente ...
+        const { data, error } = await supabase
+            .from('Citas')
+            .select(`
+                id_cita,
+                hora, 
+                estado,
+                Pacientes ( Nombre, Apellido_Paterno, Telefono )
+            `)
+            .eq('fecha', fechaParaFiltrar) 
+            .order('hora', { ascending: true });
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error) {
+        console.error("Error en agenda:", error.message);
+        res.status(400).json({ error: error.message });
+    }
+});
+// RUTA DE REGISTRO COMPLETO (Corregida y Cerrada)
+app.post('/registro-recepcion-completo', async (req, res) => {
+    console.log("Cuerpo recibido:", req.body); 
+    try {
+        // 1. Extraemos los datos del formulario
+        const { nombre, ap, am, tel, fecha_nac, ocupacion, fecha_cita, hora_cita } = req.body;
+
+        // 2. Buscamos si el paciente ya existe en FisioCid
+        let { data: paciente } = await supabase
+            .from('Pacientes')
+            .select('id')
+            .eq('Nombre', nombre)
+            .eq('Apellido_Paterno', ap)
+            .maybeSingle();
+
+        let idFinal;
         if (!paciente) {
+            // Si es nuevo, lo registramos
             const { data: nuevoP, error: errP } = await supabase
                 .from('Pacientes')
                 .insert([{ 
@@ -162,10 +200,9 @@ app.post('/registro-recepcion-completo', async (req, res) => {
                     Apellido_Materno: am, 
                     Telefono: tel, 
                     Fecha_Nacimiento: fecha_nac, 
-                    Ocupacion: ocupacion // Ahora sí el servidor sabrá qué es esto
+                    Ocupacion: ocupacion 
                 }])
-
-                .select(); 
+                .select();
             
             if (errP) throw errP;
             idFinal = nuevoP[0].id;
@@ -173,69 +210,47 @@ app.post('/registro-recepcion-completo', async (req, res) => {
             idFinal = paciente.id;
         }
 
+        // 3. Agendamos la cita - Usamos req.body.fecha_cita para que no marque "not defined"
         const { error: errCita } = await supabase
-            .from('Citas') 
-            .insert([{
-                id_paciente: idFinal,
-                fecha: fecha,
-                hora: hora,
-                estado: 'PENDIENTE',
-                sucursal: 'Santiago Miahuatlan'
+            .from('Citas')
+            .insert([{ 
+                id_paciente: idFinal, 
+                fecha: fecha_cita, 
+                hora: hora_cita 
             }]);
 
-        if (errCita) throw errCita;
+        if (errCita) {
+            console.error("DETALLE DEL FALLO EN CITAS:", errCita.message);
+            throw errCita;
+        }
 
-        res.json({ mensaje: "Cita agendada con éxito" });
+        res.status(200).json({ mensaje: "¡Sesión agendada con éxito en FisioCid!" });
 
     } catch (error) {
-        console.error("DETALLE DEL FALLO:", error.message);
+        console.error("DETALLE DEL FALLO EN REGISTRO:", error.message);
         res.status(400).json({ error: error.message });
     }
-});
+}); // <--- AQUÍ SE CIERRA LA RUTA CORRECTAMENTE
 
-app.get('/ver-agenda', async (req, res) => {
-    const { fecha } = req.query;
-    const { data, error } = await supabase
-        .from('Citas')
-        .select(`
-            id_cita,
-            hora,
-            estado,
-            Pacientes ( Nombre, Apellido_Paterno, Telefono )
-        `)
-        .eq('fecha', fecha)
-        .order('hora', { ascending: true });
+app.get('/citas-semana', async (req, res) => {
+    const hoy = new Date().toISOString().split('T')[0];
+    const proximaSemana = new Date();
+    proximaSemana.setDate(proximaSemana.getDate() + 7);
+    const limite = proximaSemana.toISOString().split('T')[0];
 
-    if (error) return res.status(400).json(error);
-    res.json(data);
-});
-app.post('/agregar-paciente', async (req, res) => {
     try {
-        const { error } = await supabase
-            .from('Pacientes')
-            .insert([req.body]); // Recibe todo: Nombre, Ocupacion, etc.
-
-        if (error) throw error;
-        res.status(200).json({ mensaje: "Paciente guardado en FisioCid" });
-    } catch (error) {
-        console.error("Error al registrar paciente:", error.message);
-        res.status(400).json({ error: error.message });
-    }
-});
-// --- RUTA PARA ELIMINAR CITA ---
-app.delete('/eliminar-cita/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('Citas')
-            .delete()
-            .eq('id_cita', id);
+            .select('*, Pacientes(Nombre, Apellido_Paterno)') 
+            .gte('fecha', hoy) // Usamos 'fecha' como dijiste que se llama
+            .lte('fecha', limite)
+            .order('fecha', { ascending: true })
+            .order('hora', { ascending: true });
 
         if (error) throw error;
-        res.json({ mensaje: "Cita eliminada correctamente" });
+        res.json(data);
     } catch (error) {
-        console.error("Error al eliminar:", error.message);
-        res.status(400).json({ error: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 // --- NUEVA RUTA PARA ELIMINAR PACIENTE COMPLETO ---
