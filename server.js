@@ -21,7 +21,38 @@ app.get('/buscar-paciente', async (req, res) => {
     if (error) return res.status(400).json(error);
     res.json(data || []);
 });
+// --- RUTA PARA AGREGAR PACIENTE (NUEVO REGISTRO MANUAL) ---
+app.post('/agregar-paciente', async (req, res) => {
+    // Extraemos todos los campos, incluyendo Ocupación
+    const { 
+        Nombre, Apellido_Paterno, Apellido_Materno, Telefono, 
+        Diagnostico, alergias, ant_heredofamiliares, 
+        ant_personales, Ocupacion 
+    } = req.body;
 
+    try {
+        const { data, error } = await supabase
+            .from('Pacientes')
+            .insert([{ 
+                Nombre, 
+                Apellido_Paterno, 
+                Apellido_Materno, 
+                Telefono, 
+                Diagnostico, 
+                alergias, 
+                ant_heredofamiliares, 
+                ant_personales, 
+                Ocupacion // <--- Aquí ya incluimos la Ocupación
+            }])
+            .select();
+
+        if (error) throw error;
+        res.status(200).json({ mensaje: "Paciente registrado en FisioCid", data });
+    } catch (error) {
+        console.error("Error al registrar paciente:", error.message);
+        res.status(400).json({ error: error.message });
+    }
+});
 app.get('/datos-paciente/:id', async (req, res) => {
     const { id } = req.params;
     const { data, error } = await supabase

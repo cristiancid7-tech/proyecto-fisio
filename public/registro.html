@@ -100,7 +100,7 @@
     am.value = am.value.toUpperCase();
 
     // El botón se activa solo si hay nombre y apellido paterno (mínimo 3 letras cada uno)
-    if (nom.value.trim().length > 2 && ap.value.trim().length > 2) {
+    if (nom.value.trim().length > 1 && ap.value.trim().length > 1) {
         btn.disabled = false;
         btn.style.opacity = "1";
         btn.style.cursor = "pointer";
@@ -179,16 +179,30 @@ async function buscar() {
         }
     }
 
-    async function enviarDatos() {
-        const datos = obtenerDatosForm();
-        if(!datos.Nombre || !datos.Apellido_Paterno) return alert("Faltan datos obligatorios");
+   async function enviarDatos() {
+    const datos = obtenerDatosForm();
+    if(!datos.Nombre || !datos.Apellido_Paterno) return alert("Faltan datos obligatorios");
+    
+    try {
         const res = await fetch('/agregar-paciente', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(datos)
         });
-        if (res.ok) { alert("¡Paciente registrado!"); limpiarForm(); }
+        
+        if (res.ok) { 
+            alert("¡Paciente registrado en FisioCid!"); 
+            limpiarForm(); 
+            // Esto hace que el paciente aparezca en la lista de búsqueda de inmediato
+            document.getElementById('busqueda').value = datos.Nombre;
+            buscar(); 
+        } else {
+            alert("Error al guardar el paciente.");
+        }
+    } catch (e) {
+        alert("Error de conexión con el servidor.");
     }
+}
 
     function prepararEdicion(p) {
         document.getElementById('Nombre').value = p.Nombre;
@@ -197,15 +211,17 @@ async function buscar() {
         document.getElementById('Telefono').value = p.Telefono || '';
         document.getElementById('Diagnostico').value = p.Diagnostico || '';
         document.getElementById('alergias').value = p.alergias || '';
+        document.getElementById('Ocupacion').value = p.Ocupacion || '';
         document.getElementById('ant_heredofamiliares').value = p.ant_heredofamiliares || '';
         document.getElementById('ant_personales').value = p.ant_personales || '';
         document.getElementById('titulo-form').innerText = "Editando Datos";
         document.querySelectorAll('#form-container input, #form-container textarea').forEach(el => el.classList.add('modo-edicion'));
-        const btn = document.getElementById('btn-accion');
-        btn.innerText = "Actualizar Información";
-        btn.style.background = "var(--accent)";
-        btn.onclick = () => actualizarPaciente(p.id);
-        document.getElementById('btn-cancelar').style.display = "block";
+       const btn = document.getElementById('btn-accion');
+btn.innerText = "Actualizar Información";
+btn.style.background = "var(--accent)";
+btn.disabled = false;     // <--- Asegura que esté activo
+btn.style.opacity = "1";  // <--- Que se vea bien
+btn.onclick = () => actualizarPaciente(p.id);
     }
 
     async function actualizarPaciente(id) {
@@ -234,6 +250,7 @@ async function buscar() {
             Apellido_Paterno: document.getElementById('Apellido_Paterno').value.trim(),
             Apellido_Materno: document.getElementById('Apellido_Materno').value.trim(),
             Telefono: document.getElementById('Telefono').value.trim(),
+            Ocupacion: document.getElementById('Ocupacion').value.trim(),
             Diagnostico: document.getElementById('Diagnostico').value.trim(),
             alergias: document.getElementById('alergias').value.trim(),
             ant_heredofamiliares: document.getElementById('ant_heredofamiliares').value.trim(),

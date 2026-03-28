@@ -124,17 +124,18 @@
 async function procesarCita() {
     const btn = document.getElementById('btn-agendar');
 
+    // 1. CAPTURA: Usamos nombres claros que el server entienda
     const datos = {
         nombre: document.getElementById('nom').value.trim().toUpperCase(),
         ap: document.getElementById('ap').value.trim().toUpperCase(),
         am: document.getElementById('am').value.trim().toUpperCase(),
         fecha_nac: document.getElementById('fnac').value,
         tel: document.getElementById('tel').value.trim(),
-        fecha: document.getElementById('fec').value, 
-        hora: document.getElementById('hor').value   
+        fecha_cita: document.getElementById('fec').value, // Antes decía 'fecha'
+        hora_cita: document.getElementById('hor').value   // Antes decía 'hora'
     };
 
-    // CORRECCIÓN AQUÍ: Ahora revisamos los nombres nuevos en el IF
+    // 2. VALIDACIÓN: Ahora el IF coincide con los nombres de arriba
     if(!datos.nombre || !datos.ap || !datos.fecha_nac || !datos.tel || !datos.fecha_cita || !datos.hora_cita) {
         return alert("Por favor, rellena todos los campos.");
     }
@@ -150,7 +151,7 @@ async function procesarCita() {
         });
 
         if(res.ok) {
-            // CORRECCIÓN AQUÍ: Para el mensaje de WhatsApp también usamos los nombres nuevos
+            // 3. WHATSAPP: También usamos los nombres correctos aquí
             const mensajeWA = `Hola FisioCid, soy ${datos.nombre} ${datos.ap}. Acabo de agendar una cita para el día ${datos.fecha_cita} a las ${datos.hora_cita} hrs.`;
             const url = `https://wa.me/522383885291?text=${encodeURIComponent(mensajeWA)}`;
             
@@ -158,10 +159,10 @@ async function procesarCita() {
             window.open(url, '_blank');
             location.reload();
         } else {
-            alert("Hubo un detalle al guardar. Inténtalo de nuevo.");
+            alert("Hubo un detalle al guardar en la base de datos.");
         }
     } catch (e) {
-        alert("Error de conexión con el servidor local.");
+        alert("Error de conexión con el servidor.");
     } finally {
         btn.disabled = false;
         btn.innerText = "Agendar mi Sesión";
