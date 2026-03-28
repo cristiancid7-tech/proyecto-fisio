@@ -68,12 +68,26 @@
     const idPac = new URLSearchParams(window.location.search).get('id');
     const bucketUrl = "https://olepmqvjrfoxabgovpov.supabase.co/storage/v1/object/public/imagenes_evolucion/";
 
-    function validar() {
-        const mot = document.getElementById('motivo_consulta').value.trim();
-        const nota = document.getElementById('nota').value.trim();
-        document.getElementById('btn-guardar').disabled = (mot === "" || nota === "");
-    }
+    // 1. Asegúrate de que tus elementos en el HTML tengan estos 'oninput'
+// <input type="text" id="motivo_consulta" oninput="validar()">
+// <textarea id="nota" oninput="validar()"></textarea>
 
+function validar() {
+    const mot = document.getElementById('motivo_consulta').value.trim();
+    const nota = document.getElementById('nota').value.trim();
+    const btn = document.getElementById('btn-guardar');
+
+    // Si el motivo tiene menos de 3 letras o la nota está vacía, no se activa
+    if (mot.length > 2 && nota.length > 5) {
+        btn.disabled = false;
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+    } else {
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+        btn.style.cursor = "not-allowed";
+    }
+}
     async function cargar() {
         const resP = await fetch(`/datos-paciente/${idPac}`);
         const p = await resP.json();
@@ -104,44 +118,61 @@
                     <div style="display:flex; gap:10px; overflow-x:auto;">${html_img}</div>
                     <div style="text-align:right; margin-top:10px;">
                         <button class="btn-accion" onclick='generarPDF(${JSON.stringify(s)})'>📄 PDF</button>
-                        <button class="btn-accion" onclick='prepararEdicion(${JSON.stringify(s)})'>✏️ Editar</button>
                         <button class="btn-accion" style="color:red;" onclick="eliminarNota(${s.id_nota})">🗑️ Borrar</button>
                     </div>
                 </div>`;
         }).join('');
     }
 
-    async function guardar() {
-        const btn = document.getElementById('btn-guardar');
-        const idNota = document.getElementById('id_nota').value;
-        btn.disabled = true;
-        btn.innerText = "⏳ Guardando...";
+  async function guardar() {
+    const btn = document.getElementById('btn-guardar');
+    const idNota = document.getElementById('id_nota').value; // Si tiene valor, es EDICIÓN
+    btn.disabled = true;
+    btn.innerText = "⏳ Guardando...";
 
-        const fd = new FormData();
-        fd.append('id', idPac);
-        fd.append('fecha', document.getElementById('fecha').value);
-        fd.append('motivo_consulta', document.getElementById('motivo_consulta').value);
-        fd.append('escala_dolor', document.getElementById('eva').value || 0);
-        fd.append('nota_evolucion', document.getElementById('nota').value);
-        fd.append('hallazgos_eco', document.getElementById('eco').value);
-        fd.append('hallazgos_rx', document.getElementById('rx').value);
-        fd.append('ejercicios', document.getElementById('ejercicios').value);
-        fd.append('recomendaciones', document.getElementById('recomendaciones').value);
-        fd.append('proxima_cita', document.getElementById('proxima_cita').value);
-        
-        for(let f of document.getElementById('fotos').files) fd.append('imagenes', f);
+    const fd = new FormData();
+    // Importante: idPac es el ID del paciente, se usa para notas NUEVAS
+    fd.append('id', idPac); 
+    fd.append('fecha', document.getElementById('fecha').value);
+    fd.append('motivo_consulta', document.getElementById('motivo_consulta').value);
+    fd.append('escala_dolor', document.getElementById('eva').value || 0);
+    fd.append('nota_evolucion', document.getElementById('nota').value);
+    fd.append('hallazgos_eco', document.getElementById('eco').value);
+    fd.append('hallazgos_rx', document.getElementById('rx').value);
+    fd.append('ejercicios', document.getElementById('ejercicios').value);
+    fd.append('recomendaciones', document.getElementById('recomendaciones').value);
+    fd.append('proxima_cita', document.getElementById('proxima_cita').value);
+    
+    for(let f of document.getElementById('fotos').files) {
+        fd.append('imagenes', f);
+    }
 
-        const url = idNota ? `/actualizar-nota/${idNota}` : '/agregar-nota';
-        const res = await fetch(url, { method: idNota ? 'PUT' : 'POST', body: fd });
+    // Definimos la ruta y el método (PUT para actualizar, POST para crear)
+    const url = idNota ? `/actualizar-nota/${idNota}` : '/agregar-nota';
+    const metodo = idNota ? 'PUT' : 'POST';
+
+    try {
+        const res = await fetch(url, { 
+            method: metodo, 
+            body: fd 
+        });
 
         if(res.ok) {
-            alert("¡Éxito!");
+            alert(idNota ? "✅ Nota actualizada con éxito" : "✅ Sesión guardada correctamente");
             limpiarForm();
-            cargar();
+            cargar(); // Esto refresca el historial abajo
+        } else {
+            const errorData = await res.json();
+            alert("❌ Error: " + (errorData.error || "No se pudo guardar"));
         }
+    } catch (error) {
+        console.error("Error de conexión:", error);
+        alert("❌ Error de conexión con el servidor de FisioCid");
+    } finally {
         btn.disabled = false;
         btn.innerText = "Guardar Sesión en FisioCid";
     }
+}
 
     function prepararEdicion(s) {
         document.getElementById('id_nota').value = s.id_nota;

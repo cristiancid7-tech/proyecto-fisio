@@ -52,16 +52,17 @@
     <div class="col-registro">
         <div class="card" id="form-container">
             <h2 id="titulo-form">Registro de Paciente</h2>
-            <input type="text" id="Nombre" placeholder="Nombre(s) *">
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="Apellido_Paterno" placeholder="Ap. Paterno *">
-                <input type="text" id="Apellido_Materno" placeholder="Ap. Materno">
-            </div>
+       <input type="text" id="Nombre" placeholder="Nombre(s) *" oninput="validarRegistro()">
+<div style="display: flex; gap: 10px;">
+    <input type="text" id="Apellido_Paterno" placeholder="Ap. Paterno *" oninput="validarRegistro()">
+    <input type="text" id="Apellido_Materno" placeholder="Ap. Materno" oninput="validarRegistro()">
+</div>
             <input type="tel" id="Telefono" placeholder="Telefono">
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
             <input type="text" id="alergias" class="input-alergia" placeholder="⚠️ Alergias (Metales, látex, etc.)">
             <textarea id="ant_heredofamiliares" class="input-heredo" placeholder="👨‍👩‍👧 Antecedentes Heredofamiliares (Diabetes, AR, HTA...)" rows="2"></textarea>
             <textarea id="ant_personales" class="input-personales" placeholder="🦴 Antecedentes Personales (Fracturas, cirugías, prótesis...)" rows="2"></textarea>
+            <input type="text" id="Ocupacion" placeholder="💼 Ocupación / Oficio">
             <textarea id="Diagnostico" placeholder="📋 Diagnóstico Inicial" rows="2"></textarea>
             <button class="btn-principal" id="btn-accion" onclick="enviarDatos()">Guardar Paciente</button>
             <button id="btn-cancelar" onclick="cancelarEdicion()" style="display:none; background:none; border:none; color:red; width:100%; margin-top:10px; cursor:pointer; font-weight:bold;">✖ Cancelar Edición</button>
@@ -86,6 +87,29 @@
 </div>
 
 <script>
+ function validarRegistro() {
+    // Referencias a los inputs (usando los IDs exactos de tu HTML)
+    const nom = document.getElementById('Nombre');
+    const ap = document.getElementById('Apellido_Paterno');
+    const am = document.getElementById('Apellido_Materno');
+    const btn = document.getElementById('btn-accion'); // Tu botón se llama btn-accion
+
+    // Convertimos a MAYÚSCULAS automáticamente mientras escribes
+    nom.value = nom.value.toUpperCase();
+    ap.value = ap.value.toUpperCase();
+    am.value = am.value.toUpperCase();
+
+    // El botón se activa solo si hay nombre y apellido paterno (mínimo 3 letras cada uno)
+    if (nom.value.trim().length > 2 && ap.value.trim().length > 2) {
+        btn.disabled = false;
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+    } else {
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+        btn.style.cursor = "not-allowed";
+    }
+}
 async function buscar() {
     const consulta = document.getElementById('busqueda').value;
     if (consulta.length < 2) {
@@ -115,7 +139,7 @@ async function buscar() {
                         <small style="color: ${p.alergias ? 'var(--red)' : '#64748b'}; font-weight: ${p.alergias ? 'bold' : 'normal'}">
                             ⚠️ Alergias: ${p.alergias || 'Ninguna'}
                         </small>
-                        <small style="color: #64748b;">🦴 Ant: ${p.ant_personales || 'Sin registro'}</small>
+                       
                     </div>
                 </div>
             </td>

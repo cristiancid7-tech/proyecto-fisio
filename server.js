@@ -78,23 +78,24 @@ app.put('/actualizar-nota/:id', upload.array('imagenes', 5), async (req, res) =>
     try {
         const { id } = req.params;
         const b = req.body;
-        const files = req.files;
         
+        // 1. Mapeo exacto de los nombres de tu tabla en Supabase
         let datosUpdate = {
             fecha: b.fecha,
             motivo_consulta: b.motivo_consulta,
-            escala_dolor: parseInt(b.escala_dolor),
+            escala_dolor: parseInt(b.escala_dolor) || 0,
             nota_evolucion: b.nota_evolucion,
-            ejercicios: b.ejercicios,
-            hallazgos_eco: b.hallazgos_eco,
-            hallazgos_rx: b.hallazgos_rx,
-            recomendaciones: b.recomendaciones,
-            proxima_cita: b.proxima_cita || null
+            ejercicios: b.ejercicios || "",
+            hallazgos_eco: b.hallazgos_eco || "",
+            hallazgos_rx: b.hallazgos_rx || "",
+            recomendaciones: b.recomendaciones || "",
+            proxima_cita: b.proxima_cita && b.proxima_cita !== "" ? b.proxima_cita : null
         };
 
-        if (files && files.length > 0) {
+        // 2. Solo actualizamos la URL de imagen si realmente se subieron fotos nuevas
+        if (req.files && req.files.length > 0) {
             let nuevosNombres = [];
-            for (const file of files) {
+            for (const file of req.files) {
                 const nombreArchivo = `${Date.now()}_${file.originalname}`;
                 await supabase.storage.from('imagenes_evolucion').upload(nombreArchivo, file.buffer, { contentType: file.mimetype });
                 nuevosNombres.push(nombreArchivo);
@@ -102,14 +103,37 @@ app.put('/actualizar-nota/:id', upload.array('imagenes', 5), async (req, res) =>
             datosUpdate.url_imagen = nuevosNombres.join(',');
         }
 
-        const { error } = await supabase.from('Evolucion').update(datosUpdate).eq('id_nota', id);
+        // 3. Ejecutar la actualización en Supabase
+        const { error } = await supabase
+            .from('Evolucion')
+            .update(datosUpdate)
+            .eq('id_nota', id); 
+
         if (error) throw error;
-        res.json({ mensaje: "Actualizado correctamente" });
+        res.json({ mensaje: "Actualizado" });
     } catch (error) {
+        console.error("ERROR CRÍTICO:", error.message);
         res.status(400).json({ error: error.message });
     }
 });
+// --- RUTA PARA ACTUALIZAR DATOS DEL PACIENTE ---
+app.put('/actualizar-paciente/:id', async (req, res) => {
+    const { id } = req.params;
+    const datosNuevos = req.body;
 
+    try {
+        const { error } = await supabase
+            .from('Pacientes')
+            .update(datosNuevos)
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ mensaje: "Información actualizada en FisioCid" });
+    } catch (error) {
+        console.error("Error al actualizar paciente:", error.message);
+        res.status(400).json({ error: error.message });
+    }
+});
 app.get('/historial-paciente/:id', async (req, res) => {
     const { id } = req.params;
     const { data, error } = await supabase.from('Evolucion').select('*').eq('id', id).order('fecha', { ascending: false });
@@ -124,19 +148,11 @@ app.delete('/eliminar-nota/:id', async (req, res) => {
 });
 
 app.post('/registro-recepcion-completo', async (req, res) => {
-    const { nombre, ap, am, fecha_nac, tel, fecha, hora } = req.body;
+
+    const { nombre, ap, am, fecha_nac, tel, fecha, hora, ocupacion } = req.body; 
 
     try {
-        let { data: paciente, error: errBusqueda } = await supabase
-            .from('Pacientes')
-            .select('id')
-            .eq('Telefono', tel)
-            .maybeSingle();
-
-        if (errBusqueda) throw errBusqueda;
-
-        let idFinal;
-
+        // ... búsqueda de paciente ...
         if (!paciente) {
             const { data: nuevoP, error: errP } = await supabase
                 .from('Pacientes')
@@ -145,8 +161,10 @@ app.post('/registro-recepcion-completo', async (req, res) => {
                     Apellido_Paterno: ap, 
                     Apellido_Materno: am, 
                     Telefono: tel, 
-                    Fecha_Nacimiento: fecha_nac 
+                    Fecha_Nacimiento: fecha_nac, 
+                    Ocupacion: ocupacion // Ahora sí el servidor sabrá qué es esto
                 }])
+
                 .select(); 
             
             if (errP) throw errP;
@@ -191,7 +209,19 @@ app.get('/ver-agenda', async (req, res) => {
     if (error) return res.status(400).json(error);
     res.json(data);
 });
+app.post('/agregar-paciente', async (req, res) => {
+    try {
+        const { error } = await supabase
+            .from('Pacientes')
+            .insert([req.body]); // Recibe todo: Nombre, Ocupacion, etc.
 
+        if (error) throw error;
+        res.status(200).json({ mensaje: "Paciente guardado en FisioCid" });
+    } catch (error) {
+        console.error("Error al registrar paciente:", error.message);
+        res.status(400).json({ error: error.message });
+    }
+});
 // --- RUTA PARA ELIMINAR CITA ---
 app.delete('/eliminar-cita/:id', async (req, res) => {
     const { id } = req.params;
