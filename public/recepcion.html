@@ -79,71 +79,74 @@
 
     // Esta función se activa en cuanto tocas el calendario
     async function actualizarVista() {
-        const fec = document.getElementById('fec').value;
-        if(!fec) return;
+    const fec = document.getElementById('fec').value;
+    if(!fec) return;
 
-        // 1. Mostrar/Ocultar aviso de domingo de inmediato
-        const fechaObj = new Date(fec + 'T00:00:00');
-        const esDom = fechaObj.getDay() === 0;
-        document.getElementById('aviso-dom').style.display = esDom ? 'block' : 'none';
+    // 1. Mostrar/Ocultar aviso de domingo
+    const fechaObj = new Date(fec + 'T00:00:00');
+    const esDom = fechaObj.getDay() === 0;
+    document.getElementById('aviso-dom').style.display = esDom ? 'block' : 'none';
 
-        // 2. Definir tus horarios de FisioCid (4:00 PM a 8:30 PM)
-        const horariosBase = [
-            "16:00", "16:30", "17:00", "17:30", "18:00", 
-            "18:30", "19:00", "19:30", "20:00", "20:30"
-        ];
+    // 2. Horarios de FisioCid
+    const horariosBase = [
+        "16:00", "16:30", "17:00", "17:30", "18:00", 
+        "18:30", "19:00", "19:30", "20:00", "20:30"
+    ];
 
-        try {
-            // Intentamos obtener los ocupados del servidor
-            const res = await fetch(`/horarios-ocupados?fecha=${fec}`);
-            const ocupados = res.ok ? await res.json() : [];
-            renderizarHorarios(horariosBase, ocupados);
-        } catch (e) {
-            console.warn("Servidor no disponible, cargando horarios por defecto.");
-            // Si el servidor falla (como en tus capturas), cargamos todos como libres
-            renderizarHorarios(horariosBase, []);
-        }
-    }
-
-    function renderizarHorarios(todos, ocupados) {
-        let sHtml = '<option value="">-- Elige una hora --</option>';
-        let lHtml = '';
+    try {
+        const res = await fetch(`/horarios-ocupados?fecha=${fec}`);
+        const ocupados = res.ok ? await res.json() : [];
         
-        todos.forEach(hora => {
-            const isOc = ocupados.includes(hora);
-            sHtml += `<option value="${hora}" ${isOc ? 'disabled' : ''}>${hora} hrs ${isOc ? '(Ocupado)' : ''}</option>`;
-            lHtml += `<div class="slot ${isOc ? 'ocupado' : 'libre'}">
-                        <span>${hora} hrs</span> 
-                        <span>${isOc ? 'OCUPADO' : 'LIBRE'}</span>
-                      </div>`;
-        });
-        
-        document.getElementById('hor').innerHTML = sHtml;
-        document.getElementById('lista-slots').innerHTML = lHtml;
+        // Pasamos los datos a la función que dibuja los cuadritos
+        renderizarHorarios(horariosBase, ocupados);
+    } catch (e) {
+        console.warn("Error al conectar con el servidor.");
+        renderizarHorarios(horariosBase, []);
     }
+}
+
+function renderizarHorarios(todos, ocupados) {
+    let sHtml = '<option value="">-- Elige una hora --</option>';
+    let lHtml = '';
+    
+    todos.forEach(hora => {
+        // Comparamos limpiando espacios en ambos lados
+        const isOc = ocupados.some(h => h.trim() === hora.trim()); 
+        
+        sHtml += `<option value="${hora}" ${isOc ? 'disabled' : ''}>${hora} hrs ${isOc ? '(Ocupado)' : ''}</option>`;
+        lHtml += `<div class="slot ${isOc ? 'ocupado' : 'libre'}">
+                    <span>${hora} hrs</span> 
+                    <span>${isOc ? 'OCUPADO' : 'LIBRE'}</span>
+                  </div>`;
+    });
+    
+    document.getElementById('hor').innerHTML = sHtml;
+    document.getElementById('lista-slots').innerHTML = lHtml;
+}
+
 async function procesarCita() {
     const btn = document.getElementById('btn-agendar');
 
-    // 1. CAPTURA: Usamos nombres claros que el server entienda
+    // 1. CAPTURA Y LIMPIEZA INMEDIATA
     const datos = {
         nombre: document.getElementById('nom').value.trim().toUpperCase(),
         ap: document.getElementById('ap').value.trim().toUpperCase(),
         am: document.getElementById('am').value.trim().toUpperCase(),
         fecha_nac: document.getElementById('fnac').value,
         tel: document.getElementById('tel').value.trim(),
-        fecha_cita: document.getElementById('fec').value, // Antes decía 'fecha'
-        hora_cita: document.getElementById('hor').value   // Antes decía 'hora'
+        fecha_cita: document.getElementById('fec').value,
+        hora_cita: document.getElementById('hor').value
     };
 
-    // 2. VALIDACIÓN: Ahora el IF coincide con los nombres de arriba
+    // Validación de campos vacíos
     if(!datos.nombre || !datos.ap || !datos.fecha_nac || !datos.tel || !datos.fecha_cita || !datos.hora_cita) {
         return alert("Por favor, rellena todos los campos.");
     }
 
-    btn.disabled = true;
-    btn.innerText = "Agendando...";
-
     try {
+        btn.disabled = true;
+        btn.innerText = "Agendando...";
+
         const res = await fetch('/registro-recepcion-completo', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -151,18 +154,14 @@ async function procesarCita() {
         });
 
         if(res.ok) {
-            // 3. WHATSAPP: También usamos los nombres correctos aquí
-            const mensajeWA = `Hola FisioCid, soy ${datos.nombre} ${datos.ap}. Acabo de agendar una cita para el día ${datos.fecha_cita} a las ${datos.hora_cita} hrs.`;
-            const url = `https://wa.me/522383885291?text=${encodeURIComponent(mensajeWA)}`;
-            
-            alert("✅ ¡Cita registrada con éxito! Te redireccionaremos a WhatsApp para confirmar.");
-            window.open(url, '_blank');
+            const mensajeWA = `Hola FisioCid, soy ${datos.nombre}. Agendé cita para el ${datos.fecha_cita} a las ${datos.hora_cita} hrs.`;
+            window.open(`https://wa.me/522383885291?text=${encodeURIComponent(mensajeWA)}`, '_blank');
             location.reload();
         } else {
-            alert("Hubo un detalle al guardar en la base de datos.");
+            alert("Error al guardar. Revisa que el servidor esté encendido.");
         }
     } catch (e) {
-        alert("Error de conexión con el servidor.");
+        alert("Error de conexión. Verifica el puerto 3000.");
     } finally {
         btn.disabled = false;
         btn.innerText = "Agendar mi Sesión";

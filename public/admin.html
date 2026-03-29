@@ -211,9 +211,13 @@ async function cargarCitasAdmin() {
 
     try {
         const res = await fetch(`/ver-agenda?fecha=${fecha}`);
-        const citas = await res.json();
+        const citasRaw = await res.json();
+        
+        // --- LA CORRECCIÓN AQUÍ: Solo procesamos las citas que NO están rechazadas ---
+        const citas = citasRaw.filter(c => c.estado !== 'RECHAZADA' && c.estado !== 'ELIMINADA');
         
         let html = '';
+        // ... el resto de tu código igual (if citas.length > 0, etc.)
         if (citas.length > 0) {
             citas.forEach(c => {
                 const p = c.Pacientes || {};
@@ -283,8 +287,14 @@ async function cargarCitasAdmin() {
                 .then(res => res.json())
                 .then(citas => {
                     const cont = document.getElementById(`citas-${fechaISO}`);
-                    if (citas.length > 0) {
-                        cont.innerHTML = citas.map(c => {
+                    
+                    // --- LA CORRECCIÓN AQUÍ: Filtramos las rechazadas ---
+                    const citasVisibles = citas.filter(c => 
+                        c.estado !== 'RECHAZADA' && c.estado !== 'ELIMINADA'
+                    );
+
+                    if (citasVisibles.length > 0) {
+                        cont.innerHTML = citasVisibles.map(c => {
                             const p = c.Pacientes || {};
                             return `
                                 <div class="cita-mini">

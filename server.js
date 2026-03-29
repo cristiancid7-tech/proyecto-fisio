@@ -219,38 +219,95 @@ app.get('/ver-agenda', async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 });
+
+// Ruta para verificar qué horarios ya están apartados en FisioCid
+// Esta es la ruta que falta y causa el error 404
+app.get('/horarios-ocupados', async (req, res) => {
+    const { fecha } = req.query;
+    try {
+        const { data, error } = await supabase
+            .from('Citas')
+            .select('hora')
+            .eq('fecha', fecha)
+            // IMPORTANTE: Solo bloqueamos si la cita NO está rechazada o eliminada
+            .not('estado', 'eq', 'RECHAZADA')
+            .not('estado', 'eq', 'ELIMINADA');
+
+        if (error) throw error;
+        
+        // Enviamos solo las horas ocupadas al frontend
+        res.json(data.map(c => c.hora));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 // RUTA DE REGISTRO COMPLETO (Corregida y Cerrada)
 // Dentro de tu ruta de registro/agendado en server.js
 app.post('/registro-recepcion-completo', async (req, res) => {
     try {
-        let { hora_cita } = req.body;
+        // Limpiamos espacios nuevamente por seguridad
+        const nombre = req.body.nombre.trim().toUpperCase();
+        const ap = req.body.ap.trim().toUpperCase();
+        const am = req.body.am.trim().toUpperCase();
+        const tel = req.body.tel.trim();
+        const { fecha_nac, fecha_cita, hora_cita } = req.body;
 
-        // --- LIMPIEZA DE HORA A 24H ---
-        // Si la hora trae "p. m." o "a. m.", la convertimos a formato 24h (HH:mm)
-        if (hora_cita.includes('m.')) {
-            let [tiempo, meridiano] = hora_cita.split(' ');
-            let [h, m] = tiempo.split(':');
-            let horas = parseInt(h);
+        // 1. BUSCAR SI EL PACIENTE YA EXISTE (Por Nombre, Apellido y Fecha de Nacimiento)
+        const { data: existente, error: errBusca } = await supabase
+            .from('Pacientes')
+            .select('id')
+            .eq('Nombre', nombre)
+            .eq('Apellido_Paterno', ap)
+            .eq('Fecha_Nacimiento', fecha_nac)
+            .maybeSingle(); // Usamos maybeSingle para que no de error si no hay nadie
 
-            if (meridiano === 'p.' || meridiano === 'p. m.') {
-                if (horas < 12) horas += 12;
-            } else if (meridiano === 'a.' || meridiano === 'a. m.') {
-                if (horas === 12) horas = 0;
-            }
-            hora_cita = `${horas.toString().padStart(2, '0')}:${m}`;
+        if (errBusca) throw errBusca;
+
+        let idFinal;
+
+        if (existente) {
+            // SI EXISTE: Solo actualizamos el teléfono (por si es nuevo)
+            const { data: actualizado } = await supabase
+                .from('Pacientes')
+                .update({ Telefono: tel, Apellido_Materno: am })
+                .eq('id', existente.id)
+                .select();
+            idFinal = existente.id;
+        } else {
+            // NO EXISTE: Creamos el registro desde cero
+            const { data: nuevo, error: errNuevo } = await supabase
+                .from('Pacientes')
+                .insert([{ 
+                    Nombre: nombre, 
+                    Apellido_Paterno: ap, 
+                    Apellido_Materno: am, 
+                    Telefono: tel,
+                    Fecha_Nacimiento: fecha_nac 
+                }])
+                .select();
+            if (errNuevo) throw errNuevo;
+            idFinal = nuevo[0].id;
         }
 
-        // Ahora insertamos en Supabase con la hora ya estandarizada
+        // 2. INSERTAR LA CITA vinculada al ID encontrado/creado
         const { error: errCita } = await supabase
             .from('Citas')
             .insert([{ 
                 id_paciente: idFinal, 
                 fecha: fecha_cita, 
-                hora: hora_cita // Aquí ya va como "19:00"
+                hora: hora_cita,
+                estado: 'Pendiente'
             }]);
-            
-        // ... resto del código
-    } catch (e) { /* ... */ }
+
+        if (errCita) throw errCita;
+
+        // 3. RESPUESTA DE ÉXITO (Esto descongela el botón)
+        res.status(200).json({ mensaje: "Registro completado con éxito" });
+
+    } catch (error) {
+        console.error("Error en proceso:", error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 // RUTA PARA CAMBIAR ESTADOS (Confirmar, Rechazar, Ausente)
 app.post('/actualizar-estado-cita', async (req, res) => {
@@ -267,6 +324,21 @@ app.post('/actualizar-estado-cita', async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 });
+
+app.get('/obtener-citas-semanales', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('Citas')
+            .select(`*, Pacientes(Nombre, Apellido_Paterno)`)
+            // LA CORRECCIÓN: Solo traer citas que estén Pendientes o Confirmadas
+            .in('estado', ['Pendiente', 'CONFIRMADA', 'AUSENTE']); 
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 app.get('/citas-semana', async (req, res) => {
     const hoy = new Date().toISOString().split('T')[0];
     const proximaSemana = new Date();
@@ -277,8 +349,10 @@ app.get('/citas-semana', async (req, res) => {
         const { data, error } = await supabase
             .from('Citas')
             .select('*, Pacientes(Nombre, Apellido_Paterno)') 
-            .gte('fecha', hoy) // Usamos 'fecha' como dijiste que se llama
+            .gte('fecha', hoy)
             .lte('fecha', limite)
+            // ESTO ES LO QUE FALTA: Solo mostrar las que no has rechazado
+            .in('estado', ['Pendiente', 'CONFIRMADA', 'AUSENTE']) 
             .order('fecha', { ascending: true })
             .order('hora', { ascending: true });
 
@@ -288,7 +362,6 @@ app.get('/citas-semana', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // Ruta para alimentar el Inbox de Citas por Confirmar
 app.get('/ver-pendientes-globales', async (req, res) => {
     try {
