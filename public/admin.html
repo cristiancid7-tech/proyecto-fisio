@@ -14,7 +14,7 @@
         }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto 20px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 1000px; margin: 0 auto; overflow-x: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 1000px; margin: 0 auto; overflow-x: auto; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
         th { background: #f1f5f9; color: #475569; }
@@ -26,6 +26,38 @@
         .fecha-selector { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px; }
         .estado-pend { color: var(--warning); font-weight: bold; }
         .estado-conf { color: var(--success); font-weight: bold; }
+
+        /* Estilos de la Semana */
+        .semana-container {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+            min-width: 900px;
+        }
+        .dia-columna {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            min-height: 300px;
+        }
+        .dia-header {
+            background: var(--primary);
+            color: white;
+            padding: 8px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+            font-weight: bold;
+            font-size: 0.85em;
+        }
+        .cita-mini {
+            background: #f1f5f9;
+            margin: 5px;
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            border-left: 3px solid var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -34,25 +66,14 @@
     <h2>📅 Agenda de Citas - FisioCid</h2>
     <input type="date" id="filtro-fecha" class="fecha-selector" onchange="cargarCitasAdmin()">
 </div>
+
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>📅 Citas de la Semana</h2>
-        <button onclick="cargarCitasSemana()" style="background: none; border: none; cursor: pointer; font-size: 1.2em;">🔄</button>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>Fecha / Hora</th>
-                <th>Paciente</th>
-                <th>Motivo</th>
-                <th style="text-align: right;">Acción</th>
-            </tr>
-        </thead>
-        <tbody id="tablaSemana">
-            </tbody>
-    </table>
+    <h3>📅 Vista Semanal de Trabajo</h3>
+    <div id="grid-semana" class="semana-container"></div>
 </div>
+
 <div class="card">
+    <h3>📋 Detalle del Día Seleccionado</h3>
     <table id="tabla-citas">
         <thead>
             <tr>
@@ -63,86 +84,131 @@
                 <th>Acciones</th>
             </tr>
         </thead>
-        <tbody id="cuerpo-tabla">
-            </tbody>
+        <tbody id="cuerpo-tabla"></tbody>
     </table>
 </div>
 
 <script>
-    // 1. Ponemos la fecha de hoy por defecto
     document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
 
-    async function cargarCitasAdmin() {
-        const fecha = document.getElementById('filtro-fecha').value;
-        try {
-            // Buscamos las citas de la fecha seleccionada
-            const res = await fetch(`/ver-agenda?fecha=${fecha}`);
-            const citas = await res.json();
-            
-            let html = '';
+// 1. Esta función debe llamarse cada vez que cambie la fecha o se cargue la página
+async function cargarCitasAdmin() {
+    const filtro = document.getElementById('filtro-fecha');
+    const fecha = filtro.value;
+    const cuerpoTabla = document.getElementById('cuerpo-tabla');
+
+    try {
+        const res = await fetch(`/ver-agenda?fecha=${fecha}`);
+        const citas = await res.json();
+        
+        let html = '';
+        if (citas.length > 0) {
             citas.forEach(c => {
-                const p = c.Pacientes;
-                const horaF = c.hora ? c.hora.slice(0,5) : '--:--';
+                const p = c.Pacientes || {};
+                const horaF = c.hora ? c.hora.slice(0, 5) : '--:--';
                 const estadoActual = c.estado || 'PENDIENTE';
                 const claseEstado = estadoActual === 'PENDIENTE' ? 'estado-pend' : 'estado-conf';
                 
                 html += `
                     <tr>
                         <td><b>${horaF} hrs</b></td>
-                        <td>${p.Nombre} ${p.Apellido_Paterno}</td>
-                        <td>${p.Telefono}</td>
+                        <td>${p.Nombre || ''} ${p.Apellido_Paterno || ''}</td>
+                        <td>${p.Telefono || ''}</td>
                         <td><span class="${claseEstado}">${estadoActual}</span></td>
                         <td>
                             <button class="btn btn-confirm" onclick="confirmarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Confirmar</button>
                             <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Rechazar</button>
                             <button class="btn btn-delete" onclick="eliminarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Eliminar</button>
                         </td>
-                    </tr>
-                `;
+                    </tr>`;
             });
-            document.getElementById('cuerpo-tabla').innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding: 20px;">No hay citas para este día.</td></tr>';
-        } catch (error) {
-            console.error("Error al cargar la agenda:", error);
+        } else {
+            html = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No hay citas para este día.</td></tr>';
         }
+        cuerpoTabla.innerHTML = html;
+    } catch (error) {
+        console.error("Error cargando detalle:", error);
+        cuerpoTabla.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error al conectar con el servidor.</td></tr>';
     }
+}
 
-    // --- FUNCIONES DE WHATSAPP ---
+// 2. Asegúrate de que el evento 'change' dispare AMBAS funciones
+document.getElementById('filtro-fecha').addEventListener('change', (e) => {
+    cargarCitasAdmin();           // Llena la tabla de abajo
+    cargarVistaSemanal(e.target.value); // Llena los cuadritos de arriba
+});
+    // --- FUNCIÓN QUE FALTABA ---
+async function cargarVistaSemanal(fechaReferencia = new Date()) {
+    const grid = document.getElementById('grid-semana');
+    grid.innerHTML = ""; 
+    
+    // Si la fechaReferencia es un string (del input date), la convertimos a objeto Date
+    const fechaBase = new Date(fechaReferencia);
+    // Ajuste para evitar desfases de zona horaria al leer el input
+    fechaBase.setMinutes(fechaBase.getMinutes() + fechaBase.getTimezoneOffset());
+
+    const lunes = new Date(fechaBase);
+    const diff = fechaBase.getDay() === 0 ? 6 : fechaBase.getDay() - 1;
+    lunes.setDate(fechaBase.getDate() - diff);
+
+    for (let i = 0; i < 6; i++) { // Lunes a Sábado
+        const diaActual = new Date(lunes);
+        diaActual.setDate(lunes.getDate() + i);
+        const fechaISO = diaActual.toISOString().split('T')[0];
+        const nombreDia = diaActual.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
+
+        const col = document.createElement('div');
+        col.className = 'dia-columna';
+        col.innerHTML = `<div class="dia-header">${nombreDia.toUpperCase()}</div><div id="citas-${fechaISO}" style="padding: 5px;"></div>`;
+        grid.appendChild(col);
+
+        fetch(`/ver-agenda?fecha=${fechaISO}`)
+            .then(res => res.json())
+            .then(citas => {
+                const cont = document.getElementById(`citas-${fechaISO}`);
+                if (citas.length > 0) {
+                    cont.innerHTML = citas.map(c => `
+                        <div class="cita-mini">
+                            <b>${c.hora.slice(0,5)}</b> ${c.Pacientes ? c.Pacientes.Nombre : 'Paciente'}
+                        </div>`).join('');
+                } else {
+                    cont.innerHTML = "<p style='color:#ccc; font-size:0.7em; text-align:center; margin-top:10px;'>Libre</p>";
+                }
+            });
+    }
+}
+
     function enviarWhatsApp(telefono, mensaje) {
-        // Limpiamos el teléfono por si tiene espacios o guiones
         const telLimpio = telefono.replace(/\D/g,'');
-        // Agregamos el prefijo de México si no lo tiene
         const link = `https://wa.me/${telLimpio.length === 10 ? '52' + telLimpio : telLimpio}?text=${encodeURIComponent(mensaje)}`;
         window.open(link, '_blank');
     }
 
     async function confirmarCita(id, nombre, telefono, fecha, hora) {
-        const mensaje = `¡Hola ${nombre}! Te confirma el Ft. Cristian de FisioCid. Tu cita del ${fecha} a las ${hora} hrs ha sido confirmada. ¡Te esperamos!`;
+        const mensaje = `¡Hola ${nombre}! Te confirma el Ft. Cristian de FisioCid. Tu cita del ${fecha} a las ${hora} hrs ha sido confirmada.`;
         enviarWhatsApp(telefono, mensaje);
     }
 
     async function rechazarCita(id, nombre, telefono, fecha, hora) {
-        const motivo = prompt("Motivo del rechazo:", "el horario ya está ocupado");
-        if (motivo === null) return;
-
+        const motivo = prompt("Motivo:", "horario ocupado");
+        if (!motivo) return;
         const res = await fetch(`/eliminar-cita/${id}`, { method: 'DELETE' });
         if(res.ok) {
-            const mensaje = `Hola ${nombre}, te habla el Ft. Cristian de FisioCid. No podremos confirmar tu cita del ${fecha} a las ${hora} porque ${motivo}.`;
-            enviarWhatsApp(telefono, mensaje);
-            cargarCitasAdmin(); 
+            enviarWhatsApp(telefono, `Hola ${nombre}, FisioCid te informa: Cita cancelada por ${motivo}.`);
+            cargarCitasAdmin(); cargarVistaSemanal();
         }
     }
 
     async function eliminarCita(id, nombre, telefono, fecha, hora) {
-        if(!confirm(`¿Seguro que quieres eliminar la cita de ${nombre}?`)) return;
-        
+        if(!confirm(`¿Eliminar cita de ${nombre}?`)) return;
         const res = await fetch(`/eliminar-cita/${id}`, { method: 'DELETE' });
-        if(res.ok) {
-            cargarCitasAdmin();
-        }
+        if(res.ok) { cargarCitasAdmin(); cargarVistaSemanal(); }
     }
 
-    // Cargamos los datos al iniciar
-    cargarCitasAdmin();
+    window.onload = () => {
+        cargarCitasAdmin();
+        cargarVistaSemanal();
+    };
 </script>
 </body>
 </html>
