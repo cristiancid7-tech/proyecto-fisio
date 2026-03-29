@@ -252,6 +252,21 @@ app.post('/registro-recepcion-completo', async (req, res) => {
         // ... resto del código
     } catch (e) { /* ... */ }
 });
+// RUTA PARA CAMBIAR ESTADOS (Confirmar, Rechazar, Ausente)
+app.post('/actualizar-estado-cita', async (req, res) => {
+    const { id, nuevoEstado } = req.body;
+    try {
+        const { error } = await supabase
+            .from('Citas')
+            .update({ estado: nuevoEstado })
+            .eq('id_cita', id);
+
+        if (error) throw error;
+        res.json({ mensaje: "Estado actualizado correctamente" });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
 app.get('/citas-semana', async (req, res) => {
     const hoy = new Date().toISOString().split('T')[0];
     const proximaSemana = new Date();
@@ -273,6 +288,55 @@ app.get('/citas-semana', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Ruta para alimentar el Inbox de Citas por Confirmar
+app.get('/ver-pendientes-globales', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('Citas') 
+            .select(`
+                id_cita, fecha, hora, estado,
+                Pacientes ( Nombre, Apellido_Paterno, Telefono )
+            `)
+            .eq('estado', 'Pendiente') // Solo las que no has confirmado
+            .order('fecha', { ascending: true });
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error) {
+        console.error("Error en pendientes:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+async function cargarPendientesGlobales() {
+    try {
+        // Asumiendo que creamos una ruta en tu servidor para esto
+        const res = await fetch('/ver-pendientes-globales'); 
+        const citas = await res.json();
+        const cuerpo = document.getElementById('cuerpo-pendientes-general');
+        
+        if (citas.length === 0) {
+            document.getElementById('seccion-pendientes').style.display = 'none'; // Se oculta si no hay nada
+            return;
+        }
+
+        document.getElementById('seccion-pendientes').style.display = 'block';
+        cuerpo.innerHTML = citas.map(c => `
+            <tr>
+                <td>${c.fecha}</td>
+                <td><b>${c.hora.slice(0,5)} hrs</b></td>
+                <td>${c.Pacientes.Nombre} ${c.Pacientes.Apellido_Paterno}</td>
+                <td>
+                    <button class="btn btn-confirm" onclick="confirmarCita(${c.id_cita}, '${c.Pacientes.Nombre}', '${c.Pacientes.Telefono}', '${c.fecha}', '${c.hora.slice(0,5)}')">Confirmar</button>
+                    <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${c.Pacientes.Nombre}', '${c.Pacientes.Telefono}', '${c.fecha}', '${c.hora.slice(0,5)}')">Rechazar</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.log("Aún no tienes la ruta de pendientes globales configurada.");
+    }
+}
+
 app.delete('/eliminar-paciente/:id', async (req, res) => {
     const { id } = req.params;
     try {
