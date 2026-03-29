@@ -125,19 +125,62 @@
 <script>
     function calcularEdad() {
     const fechaNac = document.getElementById('Fecha_Nacimiento').value;
-    if (!fechaNac) return;
+    const display = document.getElementById('edad_display');
+    
+    if (!fechaNac) {
+        display.value = "";
+        return;
+    }
 
     const hoy = new Date();
     const cumpleanos = new Date(fechaNac);
-    let edad = hoy.getFullYear() - cumpleanos.getFullYear();
-    const mes = hoy.getMonth() - cumpleanos.getMonth();
+    
+    // Diferencia total en milisegundos
+    const diffTime = hoy - cumpleanos;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    // Ajuste por si aún no ha cumplido años este mes/día
-    if (mes < 0 || (mes === 0 && hoy.getDate() < cumpleanos.getDate())) {
-        edad--;
+    // Si la fecha es a futuro (error de dedo)
+    if (diffDays < 0) {
+        display.value = "FECHA INVÁLIDA";
+        display.style.color = "red";
+        return;
     }
 
-    document.getElementById('edad_display').value = edad + " AÑOS";
+    // Cálculo exacto de meses y años
+    let anios = hoy.getFullYear() - cumpleanos.getFullYear();
+    let meses = hoy.getMonth() - cumpleanos.getMonth();
+    
+    if (meses < 0 || (meses === 0 && hoy.getDate() < cumpleanos.getDate())) {
+        anios--;
+        meses += 12;
+    }
+    
+    if (hoy.getDate() < cumpleanos.getDate()) {
+        meses--;
+    }
+
+    // --- Lógica de Visualización Clínica ---
+    
+    if (anios === 0) {
+        if (meses === 0) {
+            // Recién nacido: mostrar días
+            display.value = diffDays + (diffDays === 1 ? " DÍA" : " DÍAS");
+            display.style.color = "#8b5cf6"; // Morado (como tus medicamentos)
+        } else {
+            // Bebé: mostrar meses
+            display.value = meses + (meses === 1 ? " MES" : " MESES");
+            display.style.color = "#2563eb"; // Azul fuerte
+        }
+    } else if (anios < 3) {
+        // Niños pequeños: mostrar Años y Meses (ej. 1 AÑO 4 MESES)
+        let textoMeses = meses > 0 ? ` ${meses} MESES` : "";
+        display.value = anios + (anios === 1 ? " AÑO" : " AÑOS") + textoMeses;
+        display.style.color = "#16a34a"; // Verde
+    } else {
+        // Adultos o niños mayores: solo años
+        display.value = anios + " AÑOS";
+        display.style.color = "#1e293b"; // Color normal
+    }
 }
  function validarRegistro() {
     // Referencias a los inputs (usando los IDs exactos de tu HTML)

@@ -25,7 +25,7 @@ app.get('/buscar-paciente', async (req, res) => {
 // --- RUTA PARA AGREGAR PACIENTE (NUEVO REGISTRO MANUAL) ---
 app.post('/agregar-paciente', async (req, res) => {
     // Extraemos todos los campos, incluyendo Ocupación
-    const { Nombre, Apellido_Paterno, Apellido_Materno, Telefono, Diagnostico, alergias, Medicamentos, Ocupacion, ant_heredofamiliares, ant_personales } = req.body;
+    const { Nombre, Apellido_Paterno, Apellido_Materno, Telefono, Diagnostico, alergias, Medicamentos, Ocupacion, Fecha_Nacimiento, ant_heredofamiliares, ant_personales } = req.body;
 
     try {
         const { data, error } = await supabase

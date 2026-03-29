@@ -148,41 +148,70 @@ window.onload = () => {
     }
 };
     // 2. FUNCIÓN PARA CALCULAR EDAD
-    function calcularEdad(fechaNacimiento) {
-        if (!fechaNacimiento) return "S/D";
-        const hoy = new Date();
-        const cumpleanos = new Date(fechaNacimiento);
-        let edad = hoy.getFullYear() - cumpleanos.getFullYear();
-        const m = hoy.getMonth() - cumpleanos.getMonth();
-        if (m < 0 || (m === 0 && hoy.getDate() < cumpleanos.getDate())) {
-            edad--;
-        }
-        return edad;
+   // 2. FUNCIÓN PARA CALCULAR EDAD (Optimizada para bebés y adultos)
+function calcularEdad(fechaNacimiento) {
+    if (!fechaNacimiento) return { texto: "S/D", color: "#64748b" };
+    
+    const hoy = new Date();
+    const cumple = new Date(fechaNacimiento);
+    
+    // Diferencia total en días y meses
+    const diffTime = hoy - cumple;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    let anios = hoy.getFullYear() - cumple.getFullYear();
+    let meses = hoy.getMonth() - cumple.getMonth();
+    
+    if (meses < 0 || (meses === 0 && hoy.getDate() < cumple.getDate())) {
+        anios--;
+        meses += 12;
+    }
+    if (hoy.getDate() < cumple.getDate()) {
+        meses--;
     }
 
-    // 3. CARGAR DATOS DEL PACIENTE (Nombre y Edad)
-    async function cargarDatosPaciente() {
-        if (!idPac) {
-            document.getElementById('nombre-paciente-display').innerHTML = "⚠️ No hay ID de paciente";
-            return;
+    // Lógica de retorno de texto y color
+    if (anios === 0) {
+        if (meses === 0) {
+            return { texto: `${diffDays} DÍAS`, color: "#8b5cf6" }; // Morado
+        } else {
+            return { texto: `${meses} ${meses === 1 ? 'MES' : 'MESES'}`, color: "#2563eb" }; // Azul
         }
+    } else if (anios < 3) {
+        let textoMeses = meses > 0 ? ` ${meses} MESES` : "";
+        return { texto: `${anios} ${anios === 1 ? 'AÑO' : 'AÑOS'}${textoMeses}`, color: "#16a34a" }; // Verde
+    } else {
+        return { texto: `${anios} AÑOS`, color: "#64748b" }; // Gris normal
+    }
+}
 
-        try {
-            const respuesta = await fetch(`/datos-paciente/${idPac}`); 
-            const paciente = await respuesta.json();
-
-            if (paciente && paciente.Nombre) {
-                const nombreCompleto = `${paciente.Nombre} ${paciente.Apellido_Paterno} ${paciente.Apellido_Materno || ''}`;
-                const edadCalculada = calcularEdad(paciente.Fecha_Nacimiento);
-
-                document.getElementById('nombre-paciente-display').innerHTML = 
-                    `${nombreCompleto.toUpperCase()} <span id="edad-nota" style="color: #64748b; font-weight: normal; margin-left: 10px;">| ${edadCalculada} AÑOS</span>`;
-            }
-        } catch (error) {
-            console.error("Error en cargarDatosPaciente:", error);
-        }
+// 3. CARGAR DATOS DEL PACIENTE (Nombre y Edad)
+async function cargarDatosPaciente() {
+    if (!idPac) {
+        document.getElementById('nombre-paciente-display').innerHTML = "⚠️ No hay ID de paciente";
+        return;
     }
 
+    try {
+        const respuesta = await fetch(`/datos-paciente/${idPac}`); 
+        const paciente = await respuesta.json();
+
+        if (paciente && paciente.Nombre) {
+            const nombreCompleto = `${paciente.Nombre} ${paciente.Apellido_Paterno} ${paciente.Apellido_Materno || ''}`;
+            
+            // Obtenemos el objeto con texto y color
+            const infoEdad = calcularEdad(paciente.Fecha_Nacimiento);
+
+            document.getElementById('nombre-paciente-display').innerHTML = 
+                `${nombreCompleto.toUpperCase()} 
+                 <span id="edad-nota" style="color: ${infoEdad.color}; font-weight: bold; margin-left: 10px;">
+                    | ${infoEdad.texto}
+                 </span>`;
+        }
+    } catch (error) {
+        console.error("Error en cargarDatosPaciente:", error);
+    }
+}
     // 4. CARGAR HISTORIAL DE NOTAS
     async function cargar() {
         if (!idPac) return;
@@ -323,13 +352,25 @@ window.onload = () => {
         validar();
     }
 
-    function limpiarForm() {
-        document.getElementById('id_nota').value = "";
-        document.querySelectorAll('input:not(#id_nota), textarea').forEach(i => i.value = "");
-        document.getElementById('fecha').valueAsDate = new Date();
-        document.getElementById('btn-cancelar').style.display = "none";
-        validar();
-    }
+function limpiarForm() {
+    document.getElementById('id_nota').value = "";
+    // Limpia todos los inputs y textareas
+    document.querySelectorAll('input:not(#id_nota), textarea').forEach(i => i.value = "");
+    
+    // Reinicia la fecha de hoy
+    document.getElementById('fecha').valueAsDate = new Date();
+    
+    // --- LÍNEAS NUEVAS PARA REINICIAR EL CUADRO DE AGENDA ---
+    const aviso = document.getElementById('aviso-ocupado');
+    const listaDiv = document.getElementById('lista-horas-proximas');
+    
+    if (aviso) aviso.style.display = "none"; // Oculta el cuadro amarillo/gris
+    if (listaDiv) listaDiv.innerHTML = "";   // Borra las horas en rojo
+    // -------------------------------------------------------
+
+    document.getElementById('btn-cancelar').style.display = "none";
+    validar();
+}
 
     async function eliminarNota(id) {
         if(confirm("¿Borrar nota?")) {
