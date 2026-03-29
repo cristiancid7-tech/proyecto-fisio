@@ -5,6 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FisioCid - Panel de Control</title>
     <style>
+   
+        .input-medicamento {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    
+    /* ESTO ES LO QUE DA EL COLOR */
+    border-left: 5px solid #8b5cf6 !important; /* Morado intenso en el borde */
+    background-color: #f5f3ff !important;    /* Fondo lila muy claro */
+    
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* Para que cambie un poco al darle clic */
+.input-medicamento:focus {
+    border-color: #8b5cf6;
+    background-color: #ede9fe !important;
+}
         :root { --primary: #22c55e; --dark: #1e293b; --bg: #f1f5f9; --accent: #2563eb; --red: #ef4444; --orange: #f59e0b; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; color: var(--dark); margin: 0; }
         
@@ -59,7 +80,22 @@
 </div>
             <input type="tel" id="Telefono" placeholder="Telefono">
             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+    <div style="display: flex; flex-direction: column;">
+        <label style="font-size: 0.75em; color: #64748b; font-weight: bold; margin-bottom: 5px;">📅 NACIMIENTO</label>
+        <input type="date" id="Fecha_Nacimiento" onchange="calcularEdad()" 
+               style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit;">
+    </div>
+
+    <div style="display: flex; flex-direction: column;">
+        <label style="font-size: 0.75em; color: #64748b; font-weight: bold; margin-bottom: 5px;">🔢 EDAD</label>
+        <input type="text" id="edad_display" readonly 
+               style="width: 100%; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; color: #1e293b; font-weight: bold; text-align: center;" 
+               placeholder="-- años">
+    </div>
+</div>
             <input type="text" id="alergias" class="input-alergia" placeholder="⚠️ Alergias (Metales, látex, etc.)">
+           <input type="text" id="Medicamentos" class="input-medicamento" placeholder="💊 Medicamentos (Ej: Aspirina 100mg/24h...)">
             <textarea id="ant_heredofamiliares" class="input-heredo" placeholder="👨‍👩‍👧 Antecedentes Heredofamiliares (Diabetes, AR, HTA...)" rows="2"></textarea>
             <textarea id="ant_personales" class="input-personales" placeholder="🦴 Antecedentes Personales (Fracturas, cirugías, prótesis...)" rows="2"></textarea>
             <input type="text" id="Ocupacion" placeholder="💼 Ocupación / Oficio">
@@ -87,6 +123,22 @@
 </div>
 
 <script>
+    function calcularEdad() {
+    const fechaNac = document.getElementById('Fecha_Nacimiento').value;
+    if (!fechaNac) return;
+
+    const hoy = new Date();
+    const cumpleanos = new Date(fechaNac);
+    let edad = hoy.getFullYear() - cumpleanos.getFullYear();
+    const mes = hoy.getMonth() - cumpleanos.getMonth();
+
+    // Ajuste por si aún no ha cumplido años este mes/día
+    if (mes < 0 || (mes === 0 && hoy.getDate() < cumpleanos.getDate())) {
+        edad--;
+    }
+
+    document.getElementById('edad_display').value = edad + " AÑOS";
+}
  function validarRegistro() {
     // Referencias a los inputs (usando los IDs exactos de tu HTML)
     const nom = document.getElementById('Nombre');
@@ -211,12 +263,16 @@ async function buscar() {
         document.getElementById('Telefono').value = p.Telefono || '';
         document.getElementById('Diagnostico').value = p.Diagnostico || '';
         document.getElementById('alergias').value = p.alergias || '';
+        document.getElementById('Medicamentos').value = p.Medicamentos || '';
         document.getElementById('Ocupacion').value = p.Ocupacion || '';
         document.getElementById('ant_heredofamiliares').value = p.ant_heredofamiliares || '';
         document.getElementById('ant_personales').value = p.ant_personales || '';
-        document.getElementById('titulo-form').innerText = "Editando Datos";
+        document.getElementById('Fecha_Nacimiento').value = p.Fecha_Nacimiento || ''; 
+        calcularEdad();
+       document.getElementById('titulo-form').innerText = "Editando Datos";
         document.querySelectorAll('#form-container input, #form-container textarea').forEach(el => el.classList.add('modo-edicion'));
-       const btn = document.getElementById('btn-accion');
+      
+        const btn = document.getElementById('btn-accion');
 btn.innerText = "Actualizar Información";
 btn.style.background = "var(--accent)";
 btn.disabled = false;     // <--- Asegura que esté activo
@@ -250,9 +306,11 @@ btn.onclick = () => actualizarPaciente(p.id);
             Apellido_Paterno: document.getElementById('Apellido_Paterno').value.trim(),
             Apellido_Materno: document.getElementById('Apellido_Materno').value.trim(),
             Telefono: document.getElementById('Telefono').value.trim(),
+            Fecha_Nacimiento: document.getElementById('Fecha_Nacimiento').value.trim (),
             Ocupacion: document.getElementById('Ocupacion').value.trim(),
             Diagnostico: document.getElementById('Diagnostico').value.trim(),
             alergias: document.getElementById('alergias').value.trim(),
+            Medicamentos: document.getElementById('Medicamentos').value.trim(),
             ant_heredofamiliares: document.getElementById('ant_heredofamiliares').value.trim(),
             ant_personales: document.getElementById('ant_personales').value.trim()
         };
@@ -270,8 +328,14 @@ btn.onclick = () => actualizarPaciente(p.id);
     }
 
     function limpiarForm() {
-        document.querySelectorAll('#form-container input, #form-container textarea').forEach(el => el.value = "");
+    // Esto limpia todos los inputs y textareas (Nombre, Medicamentos, Fecha, etc.)
+    document.querySelectorAll('#form-container input, #form-container textarea').forEach(el => el.value = "");
+    
+    // Esto asegura que el cuadro de edad se vea vacío y no con el cálculo anterior
+    if(document.getElementById('edad_display')) {
+        document.getElementById('edad_display').value = "";
     }
+}
 </script>
 </body>
 </html>

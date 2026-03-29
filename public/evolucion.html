@@ -7,6 +7,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
+        .sesion-item { 
+    background: white; 
+    padding: 20px; 
+    border-radius: 12px; 
+    border: 1px solid #e2e8f0; 
+    margin-bottom: 20px; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    word-wrap: break-word; /* Evita que el texto largo se salga */
+    overflow: visible;     /* Asegura que se vea todo el contenido */
+}
+
+.nota-texto {
+    font-size: 0.95em;
+    line-height: 1.6;
+    color: #1e293b;
+    white-space: pre-wrap; /* Respeta los saltos de línea que escribas */
+    margin: 15px 0;
+}
+
+.plan-terapeutico {
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+    margin-top: 10px;
+}
         :root { --primary: #22c55e; --blue: #2563eb; --bg: #f8fafc; --orange: #f59e0b; --gray: #64748b; --red: #ef4444; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 15px; margin: 0; }
         .container { max-width: 900px; margin: auto; }
@@ -29,13 +55,15 @@
     <div class="card">
         <h2 id="titulo-form">Nota de Evolución y Seguimiento</h2>
         <input type="hidden" id="id_nota"> 
-        <input type="text" id="nombre" readonly style="background:#f1f5f9; font-weight:bold;">
         
-        <div style="display: flex; gap: 10px;">
-            <input type="date" id="fecha">
-            <input type="number" id="eva" placeholder="Dolor EVA (0-10)">
-        </div>
+      <div id="nombre-paciente-display" style="font-weight: bold; font-size: 1.1em; margin-bottom: 10px;">
+    Cargando paciente... <span id="edad-nota" style="color: #64748b; font-weight: normal; margin-left: 10px;"></span>
+</div>
 
+<div style="display: flex; gap: 10px; margin-bottom: 15px;">
+    <input type="date" id="fecha" style="flex: 2;">
+    <input type="number" id="eva" placeholder="EVA (0-10)" min="0" max="10" style="flex: 1; text-align: center;">
+</div>
         <input type="text" id="motivo_consulta" placeholder="📍 Motivo de Consulta (Obligatorio)" oninput="validar()">
         <textarea id="nota" placeholder="Nota clínica general... (Obligatorio)" rows="3" oninput="validar()"></textarea>
         
@@ -44,14 +72,53 @@
             <div class="label-rx"><textarea id="rx" placeholder="Hallazgos RX/RM..." rows="2" style="background: #eff6ff;"></textarea></div>
         </div>
 
-        <textarea id="ejercicios" rows="2" placeholder="🏋️ Ejercicios recomendados..."></textarea>
-        <textarea id="recomendaciones" placeholder="💡 Recomendaciones adicionales..." rows="2" style="background: #fffbeb;"></textarea>
+<label style="font-size: 0.8em; color: #64748b; font-weight: bold;">🛠️ TRATAMIENTO REALIZADO</label>
+<textarea id="ejercicios" 
+          placeholder="Ej: Neuromodulación L5-S1, Terapia Manual, 3x12 Deadbug..." 
+          rows="3"></textarea>
+          <label style="font-size: 0.8em; color: #64748b; font-weight: bold;">🏡 RECOMENDACIONES / TAREAS EN CASA</label>
+<textarea id="recomendaciones" 
+          placeholder="Ej: Caminata 10 min, evitar sedestación prolongada, higiene postural..." 
+          rows="2"></textarea>
+      <div style="display: flex; gap: 10px;">
+  
+
+<div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px dashed #cbd5e1; width: 100%;">
+    <label style="font-weight: bold; color: var(--blue);">📅 AGENDAR PRÓXIMA CITA</label>
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <input type="date" id="proxima_cita" style="flex: 2;" onchange="verificarDisponibilidadEvolucion()">
         
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <label>📅 Próxima cita:</label>
-            <input type="date" id="proxima_cita">
-        </div>
-        
+        <input type="time" 
+               id="hora_proxima" 
+               list="horarios-permitidos" 
+               style="flex: 1;" 
+               onchange="validarChoqueHorario()">
+
+        <datalist id="horarios-permitidos">
+            <option value="16:00"></option>
+            <option value="16:15"></option>
+            <option value="16:30"></option>
+            <option value="16:45"></option>
+            <option value="17:00"></option>
+            <option value="17:30"></option>
+            <option value="18:00"></option>
+            <option value="18:30"></option>
+            <option value="19:00"></option>
+            <option value="19:30"></option>
+            <option value="20:00"></option>
+            <option value="20:30"></option>
+        </datalist>
+    </div>
+
+    <div id="aviso-ocupado" style="display: none; margin-top: 8px; font-size: 0.8em;">
+        <span style="color: #64748b; font-weight: bold;">⚠️ Horarios ocupados en FisioCid:</span>
+        <div id="lista-horas-proximas" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px;"></div>
+    </div>
+    
+    <small style="color: #64748b; display: block; margin-top: 5px;">* Horario de atención: 16:00 - 20:30</small>
+</div>
+ </div>
+    <div> 
         <label>📸 Estudios de imagen:</label>
         <input type="file" id="fotos" multiple accept="image/*">
 
@@ -62,118 +129,183 @@
     <div id="historial"></div>
 </div>
 
-<div id="capa-pdf"><div id="contenido-pdf"></div></div>
+<div id="capa-pdf"><div id="contenido-pdf"></div>
+</div>
 
 <script>
-    const idPac = new URLSearchParams(window.location.search).get('id');
+    // 1. VARIABLES GLOBALES - Se definen al puro principio
+    const urlParams = new URLSearchParams(window.location.search);
+    const idPac = urlParams.get('id'); 
     const bucketUrl = "https://olepmqvjrfoxabgovpov.supabase.co/storage/v1/object/public/imagenes_evolucion/";
-
-    // 1. Asegúrate de que tus elementos en el HTML tengan estos 'oninput'
-// <input type="text" id="motivo_consulta" oninput="validar()">
-// <textarea id="nota" oninput="validar()"></textarea>
-
-function validar() {
-    const mot = document.getElementById('motivo_consulta').value.trim();
-    const nota = document.getElementById('nota').value.trim();
-    const btn = document.getElementById('btn-guardar');
-
-    // Si el motivo tiene menos de 3 letras o la nota está vacía, no se activa
-    if (mot.length > 2 && nota.length > 5) {
-        btn.disabled = false;
-        btn.style.opacity = "1";
-        btn.style.cursor = "pointer";
+// Ejecutar funciones al cargar la página
+window.onload = () => {
+    if (idPac) {
+        cargarDatosPaciente();
+        cargar();
+        document.getElementById('fecha').valueAsDate = new Date();
     } else {
-        btn.disabled = true;
-        btn.style.opacity = "0.5";
-        btn.style.cursor = "not-allowed";
+        alert("⚠️ No se encontró el ID del paciente en la URL");
     }
-}
-    async function cargar() {
-        const resP = await fetch(`/datos-paciente/${idPac}`);
-        const p = await resP.json();
-        document.getElementById('nombre').value = `${p.Nombre} ${p.Apellido_Paterno} ${p.Apellido_Materno || ''}`;
-        
-        const resH = await fetch(`/historial-paciente/${idPac}`);
-        const notas = await resH.json();
-        mostrarNotas(notas); 
+};
+    // 2. FUNCIÓN PARA CALCULAR EDAD
+    function calcularEdad(fechaNacimiento) {
+        if (!fechaNacimiento) return "S/D";
+        const hoy = new Date();
+        const cumpleanos = new Date(fechaNacimiento);
+        let edad = hoy.getFullYear() - cumpleanos.getFullYear();
+        const m = hoy.getMonth() - cumpleanos.getMonth();
+        if (m < 0 || (m === 0 && hoy.getDate() < cumpleanos.getDate())) {
+            edad--;
+        }
+        return edad;
     }
 
-    function mostrarNotas(notas) {
-        const contenedor = document.getElementById('historial');
-        if (!notas || notas.length === 0) {
-            contenedor.innerHTML = "<p style='text-align:center; color:gray;'>No hay notas previas.</p>";
+    // 3. CARGAR DATOS DEL PACIENTE (Nombre y Edad)
+    async function cargarDatosPaciente() {
+        if (!idPac) {
+            document.getElementById('nombre-paciente-display').innerHTML = "⚠️ No hay ID de paciente";
             return;
         }
 
-        contenedor.innerHTML = notas.map(s => {
-            let html_img = s.url_imagen ? s.url_imagen.split(',').map(f => `<img src="${bucketUrl}${f}" class="img-mini" onclick="window.open('${bucketUrl}${f}', '_blank')">`).join('') : "";
-            
-            return `
-                <div class="sesion-item">
-                    <div style="display:flex; justify-content:space-between;">
-                        <span class="motivo-tag">${s.motivo_consulta}</span>
-                        <small><b>${s.fecha}</b> | EVA: ${s.escala_dolor}/10</small>
-                    </div>
-                    <p>${s.nota_evolucion}</p>
-                    <div style="display:flex; gap:10px; overflow-x:auto;">${html_img}</div>
-                    <div style="text-align:right; margin-top:10px;">
-                        <button class="btn-accion" onclick='generarPDF(${JSON.stringify(s)})'>📄 PDF</button>
-                        <button class="btn-accion" style="color:red;" onclick="eliminarNota(${s.id_nota})">🗑️ Borrar</button>
-                    </div>
-                </div>`;
-        }).join('');
-    }
+        try {
+            const respuesta = await fetch(`/datos-paciente/${idPac}`); 
+            const paciente = await respuesta.json();
 
-  async function guardar() {
-    const btn = document.getElementById('btn-guardar');
-    const idNota = document.getElementById('id_nota').value; // Si tiene valor, es EDICIÓN
-    btn.disabled = true;
-    btn.innerText = "⏳ Guardando...";
+            if (paciente && paciente.Nombre) {
+                const nombreCompleto = `${paciente.Nombre} ${paciente.Apellido_Paterno} ${paciente.Apellido_Materno || ''}`;
+                const edadCalculada = calcularEdad(paciente.Fecha_Nacimiento);
 
-    const fd = new FormData();
-    // Importante: idPac es el ID del paciente, se usa para notas NUEVAS
-    fd.append('id', idPac); 
-    fd.append('fecha', document.getElementById('fecha').value);
-    fd.append('motivo_consulta', document.getElementById('motivo_consulta').value);
-    fd.append('escala_dolor', document.getElementById('eva').value || 0);
-    fd.append('nota_evolucion', document.getElementById('nota').value);
-    fd.append('hallazgos_eco', document.getElementById('eco').value);
-    fd.append('hallazgos_rx', document.getElementById('rx').value);
-    fd.append('ejercicios', document.getElementById('ejercicios').value);
-    fd.append('recomendaciones', document.getElementById('recomendaciones').value);
-    fd.append('proxima_cita', document.getElementById('proxima_cita').value);
-    
-    for(let f of document.getElementById('fotos').files) {
-        fd.append('imagenes', f);
-    }
-
-    // Definimos la ruta y el método (PUT para actualizar, POST para crear)
-    const url = idNota ? `/actualizar-nota/${idNota}` : '/agregar-nota';
-    const metodo = idNota ? 'PUT' : 'POST';
-
-    try {
-        const res = await fetch(url, { 
-            method: metodo, 
-            body: fd 
-        });
-
-        if(res.ok) {
-            alert(idNota ? "✅ Nota actualizada con éxito" : "✅ Sesión guardada correctamente");
-            limpiarForm();
-            cargar(); // Esto refresca el historial abajo
-        } else {
-            const errorData = await res.json();
-            alert("❌ Error: " + (errorData.error || "No se pudo guardar"));
+                document.getElementById('nombre-paciente-display').innerHTML = 
+                    `${nombreCompleto.toUpperCase()} <span id="edad-nota" style="color: #64748b; font-weight: normal; margin-left: 10px;">| ${edadCalculada} AÑOS</span>`;
+            }
+        } catch (error) {
+            console.error("Error en cargarDatosPaciente:", error);
         }
-    } catch (error) {
-        console.error("Error de conexión:", error);
-        alert("❌ Error de conexión con el servidor de FisioCid");
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "Guardar Sesión en FisioCid";
     }
+
+    // 4. CARGAR HISTORIAL DE NOTAS
+    async function cargar() {
+        if (!idPac) return;
+        try {
+            const resH = await fetch(`/historial-paciente/${idPac}`);
+            const notas = await resH.json();
+            mostrarNotas(notas); 
+        } catch (error) {
+            console.error("Error en cargar historial:", error);
+        }
+    }
+
+    // 5. VALIDACIÓN DEL BOTÓN (Para que no se quede en gris)
+    function validar() {
+        const mot = document.getElementById('motivo_consulta').value.trim();
+        const nota = document.getElementById('nota').value.trim();
+        const btn = document.getElementById('btn-guardar');
+
+        // Activamos si tienen algo de texto
+        if (mot.length >= 2 && nota.length >= 2) {
+            btn.disabled = false;
+            btn.style.opacity = "1";
+            btn.style.background = "var(--primary)";
+            btn.style.cursor = "pointer";
+        } else {
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+            btn.style.cursor = "not-allowed";
+        }
+    }
+
+   function mostrarNotas(notas) {
+    const contenedor = document.getElementById('historial');
+    if (!notas || notas.length === 0) {
+        contenedor.innerHTML = "<p style='text-align:center; color:gray;'>No hay notas previas.</p>";
+        return;
+    }
+
+    contenedor.innerHTML = notas.map(s => {
+        let html_img = s.url_imagen ? s.url_imagen.split(',').map(f => 
+            `<img src="${bucketUrl}${f}" class="img-mini" onclick="window.open('${bucketUrl}${f}', '_blank')">`
+        ).join('') : "";
+        
+        return `
+            <div class="sesion-item">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #f1f5f9; padding-bottom:10px;">
+                    <span class="motivo-tag">📍 ${s.motivo_consulta}</span>
+                    <small><b>${s.fecha}</b> | <span style="color:var(--red)">EVA: ${s.escala_dolor}/10</span></small>
+                </div>
+
+                <div class="nota-texto">
+                    <strong>Evolución:</strong><br>${s.nota_evolucion}
+                </div>
+
+                ${(s.hallazgos_eco || s.hallazgos_rx) ? `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom:15px;">
+                    ${s.hallazgos_eco ? `<div style="font-size:0.85em; color:#16a34a;"><b>ECO:</b> ${s.hallazgos_eco}</div>` : ''}
+                    ${s.hallazgos_rx ? `<div style="font-size:0.85em; color:#2563eb;"><b>RX/RM:</b> ${s.hallazgos_rx}</div>` : ''}
+                </div>` : ''}
+
+                <div class="plan-terapeutico">
+                    <div style="font-size:0.85em; color:var(--gray); margin-bottom:5px;"><b>⚡ PLAN DE INTERVENCIÓN Y TAREAS:</b></div>
+                    <div style="font-size:0.9em;">
+                        ${s.ejercicios ? `<b>Tratamiento:</b> ${s.ejercicios}<br>` : ''}
+                        ${s.recomendaciones ? `<b>Casa:</b> ${s.recomendaciones}` : ''}
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; overflow-x:auto; margin-top:15px;">${html_img}</div>
+
+                <div style="text-align:right; margin-top:15px; border-top: 1px solid #f1f5f9; padding-top:10px;">
+                    <button class="btn-accion" onclick='prepararEdicion(${JSON.stringify(s)})'>✏️ Editar</button>
+                    <button class="btn-accion" style="color:var(--red);" onclick="eliminarNota(${s.id_nota})">🗑️ Borrar</button>
+                </div>
+            </div>`;
+    }).join('');
 }
 
+    // 7. GUARDAR NOTA
+    async function guardar() {
+        const btn = document.getElementById('btn-guardar');
+        const idNota = document.getElementById('id_nota').value;
+        
+        btn.disabled = true;
+        btn.innerText = "⏳ Guardando...";
+
+        const fd = new FormData();
+        fd.append('id', idPac); 
+        fd.append('fecha', document.getElementById('fecha').value);
+        fd.append('motivo_consulta', document.getElementById('motivo_consulta').value);
+        fd.append('escala_dolor', document.getElementById('eva').value || 0);
+        fd.append('nota_evolucion', document.getElementById('nota').value);
+        fd.append('hallazgos_eco', document.getElementById('eco').value);
+        fd.append('hallazgos_rx', document.getElementById('rx').value);
+        fd.append('ejercicios', document.getElementById('ejercicios').value);
+        fd.append('recomendaciones', document.getElementById('recomendaciones').value);
+        fd.append('proxima_cita', document.getElementById('proxima_cita').value);
+        fd.append('hora_proxima', document.getElementById('hora_proxima').value);
+
+        for(let f of document.getElementById('fotos').files) {
+            fd.append('imagenes', f);
+        }
+
+        const url = idNota ? `/actualizar-nota/${idNota}` : '/agregar-nota';
+        const metodo = idNota ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, { method: metodo, body: fd });
+            if(res.ok) {
+                alert("✅ Operación exitosa en FisioCid");
+                limpiarForm();
+                cargar(); 
+            }
+        } catch (error) {
+            alert("❌ Error de red");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Guardar Sesión en FisioCid";
+            validar();
+        }
+    }
+
+    // 8. AUXILIARES
     function prepararEdicion(s) {
         document.getElementById('id_nota').value = s.id_nota;
         document.getElementById('motivo_consulta').value = s.motivo_consulta;
@@ -185,13 +317,15 @@ function validar() {
         document.getElementById('ejercicios').value = s.ejercicios || "";
         document.getElementById('recomendaciones').value = s.recomendaciones || "";
         document.getElementById('proxima_cita').value = s.proxima_cita || "";
+        document.getElementById('hora_proxima').value = s.hora_proxima || "";
         document.getElementById('btn-cancelar').style.display = "block";
+        window.scrollTo(0,0);
         validar();
     }
 
     function limpiarForm() {
         document.getElementById('id_nota').value = "";
-        document.querySelectorAll('input:not(#nombre), textarea').forEach(i => i.value = "");
+        document.querySelectorAll('input:not(#id_nota), textarea').forEach(i => i.value = "");
         document.getElementById('fecha').valueAsDate = new Date();
         document.getElementById('btn-cancelar').style.display = "none";
         validar();
@@ -204,10 +338,89 @@ function validar() {
         }
     }
 
-    window.onload = () => {
-        document.getElementById('fecha').valueAsDate = new Date();
-        cargar();
-    };
+async function verificarDisponibilidadEvolucion() {
+    // 1. Usamos el operador ?. para evitar errores si el elemento no existe aún
+    const inputFecha = document.getElementById('proxima_cita');
+    const listaDiv = document.getElementById('lista-horas-proximas');
+    const aviso = document.getElementById('aviso-ocupado');
+
+    // Validación de seguridad: Si no existen los contenedores en el HTML, 
+    // salimos de la función sin romper el resto del código (como el nombre del paciente).
+    if (!inputFecha || !listaDiv || !aviso) return; 
+
+    const fecha = inputFecha.value;
+    if (!fecha) return;
+
+    try {
+        const res = await fetch(`/ver-agenda?fecha=${fecha}`);
+        
+        // Verificamos que la respuesta sea exitosa antes de procesar
+        if (!res.ok) throw new Error("Error en la respuesta del servidor");
+        
+        const citas = await res.json();
+
+        aviso.style.display = "block";
+        
+        if (citas && citas.length > 0) {
+            listaDiv.innerHTML = citas.map(c => {
+                // Limpiamos la hora para que siempre se vea en formato 24h (HH:mm)
+                const horaLimpia = c.hora ? c.hora.substring(0, 5) : "--:--";
+                return `
+                    <span style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; padding: 2px 6px; border-radius:4px; font-weight:bold;">
+                        ${horaLimpia}
+                    </span>`;
+            }).join('');
+        } else {
+            listaDiv.innerHTML = "<span style='color:var(--primary); font-weight:bold;'>✅ Todo el día disponible</span>";
+        }
+    } catch (e) { 
+        console.error("Error al consultar agenda en FisioCid:", e);
+        // Si hay error, ocultamos el aviso para no confundir
+        aviso.style.display = "none";
+    }
+}
+function validarChoqueHorario() {
+    const inputHora = document.getElementById('hora_proxima');
+    let valor = inputHora.value; // El navegador lo da como "19:00" o "07:00 PM"
+    if (!valor) return;
+
+    // 1. Convertir CUALQUIER entrada a minutos totales (0 a 1440)
+    // Esto elimina el problema de si es 12h o 24h
+    let horas, minutos;
+    
+    if (valor.includes(' ')) { // Formato 12h (con AM/PM)
+        let [tiempo, ampm] = valor.split(' ');
+        [horas, minutos] = tiempo.split(':').map(Number);
+        if (ampm.toLowerCase().includes('p') && horas < 12) horas += 12;
+        if (ampm.toLowerCase().includes('a') && horas === 12) horas = 0;
+    } else { // Formato 24h
+        [horas, minutos] = valor.split(':').map(Number);
+    }
+
+    const totalMinutosElegidos = horas * 60 + minutos;
+
+    // 2. Validar Rango de FisioCid (16:00 a 20:30)
+    if (totalMinutosElegidos < 960 || totalMinutosElegidos > 1230) {
+        alert("🕒 Cristian, el horario es de 4:00 PM a 8:30 PM (16:00 - 20:30).");
+        inputHora.value = "";
+        return;
+    }
+
+    // 3. Comparar con las etiquetas rojas (Horas ocupadas)
+    const ocupadas = Array.from(document.querySelectorAll('#lista-horas-proximas span'))
+                          .map(s => s.innerText.trim());
+
+    // Buscamos si el "valor" elegido coincide con alguna etiqueta
+    // (Aseguramos que ambas partes se comparen igual)
+    const choque = ocupadas.some(horaOcupada => {
+        return horaOcupada.includes(valor.substring(0,5)); 
+    });
+
+    if (choque) {
+        alert(`⚠️ El horario ${valor} ya está ocupado.`);
+        inputHora.value = "";
+    }
+}
 </script>
 </body>
 </html>

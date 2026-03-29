@@ -10,6 +10,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json());
 app.use(express.static('public'));
 
+
 // --- RUTAS DE PACIENTES ---
 app.get('/buscar-paciente', async (req, res) => {
     const { consulta } = req.query;
@@ -24,11 +25,7 @@ app.get('/buscar-paciente', async (req, res) => {
 // --- RUTA PARA AGREGAR PACIENTE (NUEVO REGISTRO MANUAL) ---
 app.post('/agregar-paciente', async (req, res) => {
     // Extraemos todos los campos, incluyendo Ocupación
-    const { 
-        Nombre, Apellido_Paterno, Apellido_Materno, Telefono, 
-        Diagnostico, alergias, ant_heredofamiliares, 
-        ant_personales, Ocupacion 
-    } = req.body;
+    const { Nombre, Apellido_Paterno, Apellido_Materno, Telefono, Diagnostico, alergias, Medicamentos, Ocupacion, ant_heredofamiliares, ant_personales } = req.body;
 
     try {
         const { data, error } = await supabase
@@ -38,10 +35,12 @@ app.post('/agregar-paciente', async (req, res) => {
                 Apellido_Paterno, 
                 Apellido_Materno, 
                 Telefono, 
+                Fecha_Nacimiento,
                 Diagnostico, 
                 alergias, 
                 ant_heredofamiliares, 
                 ant_personales, 
+                Medicamentos,
                 Ocupacion // <--- Aquí ya incluimos la Ocupación
             }])
             .select();
@@ -57,7 +56,7 @@ app.get('/datos-paciente/:id', async (req, res) => {
     const { id } = req.params;
     const { data, error } = await supabase
         .from('Pacientes')
-        .select('Nombre, Apellido_Paterno, Apellido_Materno')
+        .select('Nombre, Apellido_Paterno, Apellido_Materno, Fecha_Nacimiento') // <--- AGREGAMOS ESTO
         .eq('id', id)
         .single();
     if (error) return res.status(400).json(error);
@@ -71,6 +70,7 @@ app.post('/agregar-nota', upload.array('imagenes', 5), async (req, res) => {
         const files = req.files;
         let nombresImagenes = [];
 
+        // 1. Subir imágenes si existen
         if (files && files.length > 0) {
             for (const file of files) {
                 const nombreArchivo = `${Date.now()}_${file.originalname}`;
@@ -82,6 +82,7 @@ app.post('/agregar-nota', upload.array('imagenes', 5), async (req, res) => {
             }
         }
 
+        // 2. Insertar en la tabla Evolucion
         const nuevaNota = {
             id: parseInt(body.id),
             fecha: body.fecha || new Date().toISOString().split('T')[0],
@@ -96,14 +97,27 @@ app.post('/agregar-nota', upload.array('imagenes', 5), async (req, res) => {
             proxima_cita: body.proxima_cita && body.proxima_cita !== "" ? body.proxima_cita : null
         };
 
-        const { error } = await supabase.from('Evolucion').insert([nuevaNota]);
-        if (error) throw error;
-        res.status(200).json({ mensaje: "¡Sesión guardada en FisioCid!" });
+        const { error: errEvo } = await supabase.from('Evolucion').insert([nuevaNota]);
+        if (errEvo) throw errEvo;
+
+        // 3. ¡LO NUEVO! Si hay una próxima cita, agendarla en la tabla Citas automáticamente
+        if (body.proxima_cita && body.hora_proxima) {
+            const { error: errCita } = await supabase
+                .from('Citas')
+                .insert([{
+                    id_paciente: parseInt(body.id),
+                    fecha: body.proxima_cita,
+                    hora: body.hora_proxima,
+                    estado: 'Pendiente' // O el estado que prefieras
+                }]);
+            if (errCita) console.error("Error al auto-agendar:", errCita.message);
+        }
+
+        res.status(200).json({ mensaje: "¡Sesión y Próxima Cita guardadas en FisioCid!" });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
-
 // --- RUTA PARA ACTUALIZAR NOTA (EDITAR) ---
 app.put('/actualizar-nota/:id', upload.array('imagenes', 5), async (req, res) => {
     try {
@@ -206,63 +220,38 @@ app.get('/ver-agenda', async (req, res) => {
     }
 });
 // RUTA DE REGISTRO COMPLETO (Corregida y Cerrada)
+// Dentro de tu ruta de registro/agendado en server.js
 app.post('/registro-recepcion-completo', async (req, res) => {
-    console.log("Cuerpo recibido:", req.body); 
     try {
-        // 1. Extraemos los datos del formulario
-        const { nombre, ap, am, tel, fecha_nac, ocupacion, fecha_cita, hora_cita } = req.body;
+        let { hora_cita } = req.body;
 
-        // 2. Buscamos si el paciente ya existe en FisioCid
-        let { data: paciente } = await supabase
-            .from('Pacientes')
-            .select('id')
-            .eq('Nombre', nombre)
-            .eq('Apellido_Paterno', ap)
-            .maybeSingle();
+        // --- LIMPIEZA DE HORA A 24H ---
+        // Si la hora trae "p. m." o "a. m.", la convertimos a formato 24h (HH:mm)
+        if (hora_cita.includes('m.')) {
+            let [tiempo, meridiano] = hora_cita.split(' ');
+            let [h, m] = tiempo.split(':');
+            let horas = parseInt(h);
 
-        let idFinal;
-        if (!paciente) {
-            // Si es nuevo, lo registramos
-            const { data: nuevoP, error: errP } = await supabase
-                .from('Pacientes')
-                .insert([{ 
-                    Nombre: nombre, 
-                    Apellido_Paterno: ap, 
-                    Apellido_Materno: am, 
-                    Telefono: tel, 
-                    Fecha_Nacimiento: fecha_nac, 
-                    Ocupacion: ocupacion 
-                }])
-                .select();
-            
-            if (errP) throw errP;
-            idFinal = nuevoP[0].id;
-        } else {
-            idFinal = paciente.id;
+            if (meridiano === 'p.' || meridiano === 'p. m.') {
+                if (horas < 12) horas += 12;
+            } else if (meridiano === 'a.' || meridiano === 'a. m.') {
+                if (horas === 12) horas = 0;
+            }
+            hora_cita = `${horas.toString().padStart(2, '0')}:${m}`;
         }
 
-        // 3. Agendamos la cita - Usamos req.body.fecha_cita para que no marque "not defined"
+        // Ahora insertamos en Supabase con la hora ya estandarizada
         const { error: errCita } = await supabase
             .from('Citas')
             .insert([{ 
                 id_paciente: idFinal, 
                 fecha: fecha_cita, 
-                hora: hora_cita 
+                hora: hora_cita // Aquí ya va como "19:00"
             }]);
-
-        if (errCita) {
-            console.error("DETALLE DEL FALLO EN CITAS:", errCita.message);
-            throw errCita;
-        }
-
-        res.status(200).json({ mensaje: "¡Sesión agendada con éxito en FisioCid!" });
-
-    } catch (error) {
-        console.error("DETALLE DEL FALLO EN REGISTRO:", error.message);
-        res.status(400).json({ error: error.message });
-    }
-}); // <--- AQUÍ SE CIERRA LA RUTA CORRECTAMENTE
-
+            
+        // ... resto del código
+    } catch (e) { /* ... */ }
+});
 app.get('/citas-semana', async (req, res) => {
     const hoy = new Date().toISOString().split('T')[0];
     const proximaSemana = new Date();
@@ -284,11 +273,14 @@ app.get('/citas-semana', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// --- NUEVA RUTA PARA ELIMINAR PACIENTE COMPLETO ---
 app.delete('/eliminar-paciente/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        // Esto borrará al paciente de la tabla 'Pacientes'
+        // 1. Borramos primero sus evoluciones y citas (opcional si tienes CASCADE en Supabase)
+        await supabase.from('Evolucion').delete().eq('id', id);
+        await supabase.from('Citas').delete().eq('id_paciente', id);
+
+        // 2. Ahora sí, borramos al paciente
         const { error } = await supabase
             .from('Pacientes')
             .delete()
@@ -297,10 +289,10 @@ app.delete('/eliminar-paciente/:id', async (req, res) => {
         if (error) throw error;
         res.json({ mensaje: "Paciente eliminado de FisioCid" });
     } catch (error) {
-        console.error("Error al eliminar paciente:", error.message);
         res.status(400).json({ error: error.message });
     }
 });
+
 const PORT = process.env.PORT || 3000; 
 app.listen(PORT, () => {
     console.log(`🚀 FisioCid listo en puerto ${PORT}`);
