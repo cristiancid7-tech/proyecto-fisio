@@ -118,6 +118,22 @@ app.post('/agregar-nota', upload.array('imagenes', 5), async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 });
+
+// NUEVA RUTA PARA EL AUTOCOMPLETADO (DATALIST)
+app.get('/obtener-pacientes', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('Pacientes')
+            .select('Nombre, Apellido_Paterno, Telefono, direccion_predeterminada') // Traemos lo necesario
+            .order('Nombre', { ascending: true });
+
+        if (error) throw error;
+        res.json(data || []);
+    } catch (error) {
+        console.error("Error en FisioCid al obtener lista:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
 // --- RUTA PARA ACTUALIZAR NOTA (EDITAR) ---
 app.put('/actualizar-nota/:id', upload.array('imagenes', 5), async (req, res) => {
     try {
