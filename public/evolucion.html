@@ -73,6 +73,7 @@
         </div>
 
 <label style="font-size: 0.8em; color: #64748b; font-weight: bold;">🛠️ TRATAMIENTO REALIZADO</label>
+<input type="hidden" id="id_nota">
 <textarea id="ejercicios" 
           placeholder="Ej: Neuromodulación L5-S1, Terapia Manual, 3x12 Deadbug..." 
           rows="3"></textarea>
@@ -124,6 +125,8 @@
 
         <button id="btn-guardar" class="btn" onclick="guardar()" disabled style="margin-top:15px;">Guardar Sesión en FisioCid</button>
         <button id="btn-cancelar" class="btn" onclick="limpiarForm()" style="display:none; background:var(--gray); margin-top:10px;">Cancelar Edición</button>
+       
+</button>
     </div>
 
     <div id="historial"></div>
@@ -133,7 +136,8 @@
 </div>
 
 <script>
-    // 1. VARIABLES GLOBALES - Se definen al puro principio
+    // Al inicio del archivo de scripts
+let notasGlobales = []; // Esta variable guardará las notas para el editor
     const urlParams = new URLSearchParams(window.location.search);
     const idPac = urlParams.get('id'); 
     const bucketUrl = "https://olepmqvjrfoxabgovpov.supabase.co/storage/v1/object/public/imagenes_evolucion/";
@@ -244,6 +248,7 @@ async function cargarDatosPaciente() {
     }
 
    function mostrarNotas(notas) {
+    notasGlobales = notas;
     const contenedor = document.getElementById('historial');
     if (!notas || notas.length === 0) {
         contenedor.innerHTML = "<p style='text-align:center; color:gray;'>No hay notas previas.</p>";
@@ -251,45 +256,60 @@ async function cargarDatosPaciente() {
     }
 
     contenedor.innerHTML = notas.map(s => {
-        let html_img = s.url_imagen ? s.url_imagen.split(',').map(f => 
-            `<img src="${bucketUrl}${f}" class="img-mini" onclick="window.open('${bucketUrl}${f}', '_blank')">`
-        ).join('') : "";
-        
-        return `
-            <div class="sesion-item">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #f1f5f9; padding-bottom:10px;">
-                    <span class="motivo-tag">📍 ${s.motivo_consulta}</span>
-                    <small><b>${s.fecha}</b> | <span style="color:var(--red)">EVA: ${s.escala_dolor}/10</span></small>
+    let html_img = s.url_imagen ? s.url_imagen.split(',').map(f => 
+        `<img src="${bucketUrl}${f}" class="img-mini" onclick="window.open('${bucketUrl}${f}', '_blank')">`
+    ).join('') : "";
+    
+  return `
+    <div class="sesion-item" id="nota-${s.id_nota}" style="background: white !important;">
+    
+            <div class="header-pdf-fisiocid" style="display: none; text-align: center; border-bottom: 2px solid #7e22ce; margin-bottom: 20px; padding-bottom: 10px;">
+                <h2 style="color: #7e22ce; margin: 0;">FisioCid - Fisioterapia Integral</h2>
+                <p style="margin: 5px 0; font-weight: bold;">Lic. Cristian Miguel Cid Espíndola | Céd. Prof. 13139044</p>
+                <p style="font-size: 0.9em; color: #64748b;">Nota de Evolución Clínica</p>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #f1f5f9; padding-bottom:10px;">
+                <span class="motivo-tag">📍 ${s.motivo_consulta}</span>
+                <small><b>${s.fecha}</b> | <span style="color:var(--red)">EVA: ${s.escala_dolor}/10</span></small>
+            </div>
+
+            <div class="nota-texto" style="margin-top: 15px;">
+                <strong>Evolución:</strong><br>${s.nota_evolucion}
+            </div>
+
+            ${(s.hallazgos_eco || s.hallazgos_rx) ? `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top:15px; margin-bottom:15px;">
+                ${s.hallazgos_eco ? `<div style="font-size:0.85em; color:#16a34a;"><b>ECO:</b> ${s.hallazgos_eco}</div>` : ''}
+                ${s.hallazgos_rx ? `<div style="font-size:0.85em; color:#2563eb;"><b>RX/RM:</b> ${s.hallazgos_rx}</div>` : ''}
+            </div>` : ''}
+
+            <div class="plan-terapeutico" style="background: #f8fafc; padding: 10px; border-radius: 8px; margin-top: 15px;">
+                <div style="font-size:0.85em; color:var(--gray); margin-bottom:5px;"><b>⚡ PLAN DE INTERVENCIÓN Y TAREAS:</b></div>
+                <div style="font-size:0.9em;">
+                    ${s.ejercicios ? `<b>Tratamiento:</b> ${s.ejercicios}<br>` : ''}
+                    ${s.recomendaciones ? `<b>Casa:</b> ${s.recomendaciones}` : ''}
                 </div>
+            </div>
 
-                <div class="nota-texto">
-                    <strong>Evolución:</strong><br>${s.nota_evolucion}
-                </div>
+            <div style="display:flex; gap:10px; overflow-x:auto; margin-top:15px;">${html_img}</div>
 
-                ${(s.hallazgos_eco || s.hallazgos_rx) ? `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom:15px;">
-                    ${s.hallazgos_eco ? `<div style="font-size:0.85em; color:#16a34a;"><b>ECO:</b> ${s.hallazgos_eco}</div>` : ''}
-                    ${s.hallazgos_rx ? `<div style="font-size:0.85em; color:#2563eb;"><b>RX/RM:</b> ${s.hallazgos_rx}</div>` : ''}
-                </div>` : ''}
-
-                <div class="plan-terapeutico">
-                    <div style="font-size:0.85em; color:var(--gray); margin-bottom:5px;"><b>⚡ PLAN DE INTERVENCIÓN Y TAREAS:</b></div>
-                    <div style="font-size:0.9em;">
-                        ${s.ejercicios ? `<b>Tratamiento:</b> ${s.ejercicios}<br>` : ''}
-                        ${s.recomendaciones ? `<b>Casa:</b> ${s.recomendaciones}` : ''}
-                    </div>
-                </div>
-
-                <div style="display:flex; gap:10px; overflow-x:auto; margin-top:15px;">${html_img}</div>
-
-                <div style="text-align:right; margin-top:15px; border-top: 1px solid #f1f5f9; padding-top:10px;">
-                    <button class="btn-accion" onclick='prepararEdicion(${JSON.stringify(s)})'>✏️ Editar</button>
-                    <button class="btn-accion" style="color:var(--red);" onclick="eliminarNota(${s.id_nota})">🗑️ Borrar</button>
-                </div>
-            </div>`;
-    }).join('');
+            <div class="botones-nota no-pdf" style="text-align:right; margin-top:15px; border-top: 1px solid #f1f5f9; padding-top:10px;">
+                <button class="btn-accion" style="color:var(--red);" onclick="eliminarNota(${s.id_nota})">🗑️ Borrar</button>
+               <button onclick="descargarNotaUnica(${s.id_nota})" style="background: #e11d48; color: white; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; margin-left: 10px; font-weight: bold;">
+                        📄 PDF
+                    </button>
+            </div>
+        </div>`;
+}).join('');
 }
 
+function prepararEdicionPorId(id) {
+    const notaParaEditar = notasGlobales.find(n => n.id_nota === id);
+    if (notaParaEditar) {
+        prepararEdicion(notaParaEditar);
+    }
+}
     // 7. GUARDAR NOTA
     async function guardar() {
         const btn = document.getElementById('btn-guardar');
@@ -420,6 +440,42 @@ async function verificarDisponibilidadEvolucion() {
         aviso.style.display = "none";
     }
 }
+
+function descargarNotaUnica(id) {
+    const elemento = document.getElementById(`nota-${id}`);
+    const header = elemento.querySelector('.header-pdf-fisiocid');
+    const botones = elemento.querySelector('.botones-nota');
+
+    // 1. Preparamos visualmente
+    header.style.display = 'block';
+    botones.style.display = 'none';
+
+    // 2. Configuramos opciones más robustas
+    const opciones = {
+        margin: [10, 10], // Márgenes arriba/abajo y lados
+        filename: `FisioCid_Nota_${id}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            letterRendering: true,
+            scrollY: 0 // Evita que si estás con scroll salga blanco
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // 3. Ejecutamos con una pequeña espera para asegurar que el 'display: block' se aplicó
+    setTimeout(() => {
+        html2pdf().set(opciones).from(elemento).save().then(() => {
+            header.style.display = 'none';
+            botones.style.display = 'block';
+        }).catch(err => {
+            console.error("Error al generar PDF:", err);
+            alert("Hubo un error al generar el PDF. Revisa la consola.");
+        });
+    }, 500); // Medio segundo de espera
+}
 function validarChoqueHorario() {
     const inputHora = document.getElementById('hora_proxima');
     let valor = inputHora.value; // El navegador lo da como "19:00" o "07:00 PM"
@@ -463,5 +519,6 @@ function validarChoqueHorario() {
     }
 }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </body>
 </html>

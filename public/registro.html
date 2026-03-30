@@ -221,22 +221,25 @@ async function buscar() {
         const telFormateado = p.Telefono ? p.Telefono.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3') : 'Sin número';
 
         return `
-        <tr style="border-left: ${p.alergias && p.alergias.toLowerCase() !== 'ninguna' ? '8px solid var(--red)' : '8px solid var(--primary)'};">
+        <tr style="border-left: ${ (p.alergias && p.alergias.toLowerCase() !== 'ninguna') || (p.Medicamentos && p.Medicamentos.toLowerCase() !== 'ninguna') ? '8px solid var(--red)' : '8px solid var(--primary)' };">
             <td style="padding: 15px;">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                    <b style="font-size: 1.1em; color: var(--dark);">${nombreFull}</b>
-                    
-                    <a href="tel:${p.Telefono}" style="text-decoration: none; color: #64748b; font-size: 0.85em; width: fit-content;" title="Llamar ahora">
-                        📱 ${telFormateado}
-                    </a>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+            <b style="font-size: 1.1em; color: var(--dark);">${nombreFull}</b>
+            
+            <a href="tel:${p.Telefono}" style="text-decoration: none; color: #64748b; font-size: 0.85em; width: fit-content;" title="Llamar ahora">
+                📱 ${telFormateado}
+            </a>
 
-                    <div style="display: flex; gap: 15px; margin-top: 8px;">
-                        <small style="color: ${p.alergias ? 'var(--red)' : '#64748b'}; font-weight: ${p.alergias ? 'bold' : 'normal'}">
-                            ⚠️ Alergias: ${p.alergias || 'Ninguna'}
-                        </small>
-                       
-                    </div>
-                </div>
+            <div style="display: flex; gap: 15px; margin-top: 8px; flex-wrap: wrap;">
+                <small style="color: ${p.alergias && p.alergias.toLowerCase() !== 'ninguna' ? 'var(--red)' : '#64748b'}; font-weight: ${p.alergias && p.alergias.toLowerCase() !== 'ninguna' ? 'bold' : 'normal'}">
+                    ⚠️ Alergias: ${p.alergias || 'Ninguna'}
+                </small>
+                
+                <small style="color: ${p.Medicamentos && p.Medicamentos.toLowerCase() !== 'ninguna' ? '#8b5cf6' : '#64748b'}; font-weight: ${p.Medicamentos && p.Medicamentos.toLowerCase() !== 'ninguna' ? 'bold' : 'normal'}">
+                    💊 Med: ${p.Medicamentos || 'Ninguno'}
+                </small>
+            </div>
+        </div>
             </td>
             <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
                 <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
@@ -343,22 +346,26 @@ btn.onclick = () => actualizarPaciente(p.id);
         }
     }
 }
-    function obtenerDatosForm() {
-        return {
-            Nombre: document.getElementById('Nombre').value.trim(),
-            Apellido_Paterno: document.getElementById('Apellido_Paterno').value.trim(),
-            Apellido_Materno: document.getElementById('Apellido_Materno').value.trim(),
-            Telefono: document.getElementById('Telefono').value.trim(),
-            Fecha_Nacimiento: document.getElementById('Fecha_Nacimiento').value.trim (),
-            Ocupacion: document.getElementById('Ocupacion').value.trim(),
-            Diagnostico: document.getElementById('Diagnostico').value.trim(),
-            alergias: document.getElementById('alergias').value.trim(),
-            Medicamentos: document.getElementById('Medicamentos').value.trim(),
-            ant_heredofamiliares: document.getElementById('ant_heredofamiliares').value.trim(),
-            ant_personales: document.getElementById('ant_personales').value.trim()
-        };
-    }
+ function obtenerDatosForm() {
+    // Capturamos el valor de la fecha primero
+    const fechaVal = document.getElementById('Fecha_Nacimiento').value.trim();
 
+    return {
+        Nombre: document.getElementById('Nombre').value.trim(),
+        Apellido_Paterno: document.getElementById('Apellido_Paterno').value.trim(),
+        Apellido_Materno: document.getElementById('Apellido_Materno').value.trim(),
+        Telefono: document.getElementById('Telefono').value.trim(),
+        // CAMBIO CLAVE: Si está vacío, enviamos null en lugar de ""
+        Fecha_Nacimiento: fechaVal === "" ? null : fechaVal, 
+        
+        Ocupacion: document.getElementById('Ocupacion').value.trim(),
+        Diagnostico: document.getElementById('Diagnostico').value.trim(),
+        alergias: document.getElementById('alergias').value.trim(),
+        Medicamentos: document.getElementById('Medicamentos').value.trim(),
+        ant_heredofamiliares: document.getElementById('ant_heredofamiliares').value.trim(),
+        ant_personales: document.getElementById('ant_personales').value.trim()
+    };
+}
     function cancelarEdicion() {
         limpiarForm();
         document.getElementById('titulo-form').innerText = "Registro de Paciente";
