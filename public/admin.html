@@ -1,686 +1,1297 @@
 <!DOCTYPE html>
+
 <html lang="es">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Panel Control - FisioCid</title>
+
     <style>
+
         .row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+
 .col-md-4 { flex: 1; min-width: 200px; }
+
 .col-md-6 { flex: 1; min-width: 300px; }
+
 .form-control { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; }
+
         /* --- ESTILOS CORREGIDOS PARA FISIOCID --- */
-        :root { 
-            --primary: #2563eb; 
-            --primary-light: #dbeafe; 
-            --danger: #ef4444; 
-            --bg: #f1f5f9; 
-            --success: #16a34a; 
-            --warning: #f59e0b; 
+
+        :root {
+
+            --primary: #2563eb;
+
+            --primary-light: #dbeafe;
+
+            --danger: #ef4444;
+
+            --bg: #f1f5f9;
+
+            --success: #16a34a;
+
+            --warning: #f59e0b;
+
             --text-main: #1e293b;
+
             --text-muted: #64748b;
+
         }
+
+
 
         body { font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; color: var(--text-main); }
 
+
+
 /* Obliga a que los inputs de texto se vean siempre en mayúsculas */
+
 #buscarPaciente, #telPaciente, #dirPaciente {
+
     text-transform: uppercase;
+
 }
+
         /* Estilo para la cabecera del calendario (Lo que faltaba) */
-        .header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            max-width: 1100px; 
-            margin: 0 auto 20px; 
+
+        .header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            max-width: 1100px;
+
+            margin: 0 auto 20px;
+
         }
 
-        .fecha-selector { 
-            padding: 10px 15px; 
-            border-radius: 10px; 
-            border: 1px solid #cbd5e1; 
-            font-size: 16px; 
+
+
+        .fecha-selector {
+
+            padding: 10px 15px;
+
+            border-radius: 10px;
+
+            border: 1px solid #cbd5e1;
+
+            font-size: 16px;
+
             font-family: inherit;
+
             outline: none;
+
             color: var(--text-main);
+
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+
         }
 
-        .card { 
-            background: white; 
-            padding: 25px; 
-            border-radius: 16px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03); 
-            max-width: 1100px; 
-            margin: 0 auto 20px; 
-            overflow-x: auto; 
+
+
+        .card {
+
+            background: white;
+
+            padding: 25px;
+
+            border-radius: 16px;
+
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+
+            max-width: 1100px;
+
+            margin: 0 auto 20px;
+
+            overflow-x: auto;
+
         }
+
+
 
         h3 { margin-top: 0; color: var(--text-main); font-size: 1.1em; display: flex; align-items: center; gap: 10px; }
 
+
+
         /* Vista Semanal Minimalista */
+
         .semana-container {
+
             display: grid;
+
             grid-template-columns: repeat(6, 1fr);
+
             gap: 12px;
+
             margin-top: 20px;
+
             min-width: 950px;
+
         }
+
+
 
         .dia-columna {
+
             background: #fff;
+
             border: 1px solid #e2e8f0;
+
             border-radius: 12px;
+
             min-height: 250px;
+
             transition: 0.2s;
+
         }
+
+
 
         .dia-header {
+
             background: var(--primary-light);
+
             color: var(--primary);
+
             padding: 10px;
+
             text-align: center;
+
             border-radius: 12px 12px 0 0;
+
             font-weight: bold;
+
             font-size: 0.85em;
+
             border-bottom: 1px solid #e2e8f0;
+
         }
 
+
+
         .cita-mini {
+
             background: white;
+
             margin: 8px;
+
             padding: 8px;
+
             border-radius: 8px;
+
             font-size: 0.75em;
+
             border: 1px solid #e2e8f0;
+
             color: var(--text-main);
+
             display: flex;
+
             flex-direction: column;
+
             gap: 2px;
+
         }
+
+
 
         .cita-mini b { color: var(--primary); font-size: 0.9em; }
 
+
+
         /* Tabla de Detalle */
+
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.95em; }
+
         th, td { padding: 16px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+
         th { background: #f8fafc; color: var(--text-muted); font-weight: 600; font-size: 0.8em; text-transform: uppercase; }
 
+
+
         .btn { border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; font-size: 12px; transition: 0.2s; margin-right: 4px; }
+
         .btn-confirm { background: var(--success); }
+
         .btn-reject { background: var(--warning); }
+
         .btn-delete { background: var(--danger); }
+
         .btn:hover { opacity: 0.8; }
 
+
+
         .estado-pend { color: var(--warning); font-weight: bold; }
+
         .estado-conf { color: var(--success); font-weight: bold; }
 
-        /* --- ESTADOS DE CITA --- */
-/* --- ESTADOS DE COLOR PARA LAS CITAS (Corregido) --- */
-.estado-pend { 
+
+
     background-color: #fef3c7; /* Amarillo suave */
+
     color: #d97706; /* Texto naranja/amarillo oscuro */
-    padding: 6px 10px; 
-    border-radius: 8px; 
-    font-weight: bold; 
+
+    padding: 6px 10px;
+
+    border-radius: 8px;
+
+    font-weight: bold;
+
     font-size: 0.85em;
+
     display: inline-block; /* Para que el fondo no ocupe todo el ancho */
-}
 
-.estado-conf { 
+
+
+.estado-conf {
+
     background-color: #dcfce7; /* Verde suave */
+
     color: #16a34a; /* Texto verde oscuro */
-    padding: 6px 10px; 
-    border-radius: 8px; 
-    font-weight: bold; 
+
+    padding: 6px 10px;
+
+    border-radius: 8px;
+
+    font-weight: bold;
+
     font-size: 0.85em;
+
     display: inline-block;
+
 }
 
-.estado-rech { 
+
+
+.estado-rech {
+
     background-color: #fee2e2; /* Rojo suave */
+
     color: #ef4444; /* Texto rojo oscuro */
-    padding: 6px 10px; 
-    border-radius: 8px; 
-    font-weight: bold; 
+
+    padding: 6px 10px;
+
+    border-radius: 8px;
+
+    font-weight: bold;
+
     font-size: 0.85em;
+
     display: inline-block;
+
 }
 
-.estado-ausente { 
+
+
+.estado-ausente {
+
     background-color: #f1f5f9; /* Gris suave */
+
     color: #94a3b8; /* Texto gris oscuro */
-    padding: 6px 10px; 
-    border-radius: 8px; 
-    font-weight: bold; 
+
+    padding: 6px 10px;
+
+    border-radius: 8px;
+
+    font-weight: bold;
+
     font-size: 0.85em;
+
     text-decoration: line-through; /* Tachado */
+
     display: inline-block;
+
 }
+
+
 
 /* Fila atenuada para ausentes en la tabla */
+
 .fila-ausente { opacity: 0.5; }
 
+
+
     </style>
+
 </head>
+
 <body>
-    
+
+   
+
 <div class="card" style="border-left: 5px solid var(--primary);">
+
     <h3>➕ Registrar Cita Manual (Admin)</h3>
+
    <div class="row">
+
     <div class="col-md-3 mb-3">
+
         <label for="buscarPaciente"><b>Paciente:</b></label>
+
         <input list="listaPacientes" id="buscarPaciente" class="form-control" placeholder="Escribe el nombre...">
+
         <datalist id="listaPacientes"></datalist>
+
     </div>
+
+<div class="col-md-3 mb-3">
+    <label>Tipo de Servicio:</label>
+    <select id="tipoServicio" class="form-control" onchange="actualizarHorariosDisponibles()">
+        <option value="consultorio">🏥 En Consultorio</option>
+        <option value="domicilio">🏠 A Domicilio</option>
+    </select>
+</div>
+
     <div class="col-md-3 mb-3">
-        <label>Tipo de Servicio:</label>
-        <select id="tipoServicio" class="form-control">
-            <option value="consultorio">🏥 En Consultorio</option>
-            <option value="domicilio">🏠 A Domicilio</option>
-        </select>
-    </div>
-    <div class="col-md-3 mb-3">
+
         <label>Fecha de Cita:</label>
+
         <input type="date" id="filtro-fecha" class="fecha-selector" onchange="actualizarTodo()">
+
 </div>
-    <div class="col-md-3 mb-3">
-        <label>Hora:</label>
-        <input type="time" id="inputHora" class="form-control">
-    </div>
+<div class="col-md-3 mb-3">
+    <label>Hora:</label>
+    <select id="inputHora" class="form-control">
+        <option value="">Primero elige el servicio...</option>
+    </select>
 </div>
+
+</div>
+
     <div class="row">
+
         <div class="col-md-6 mb-3">
+
             <label>Teléfono (WhatsApp):</label>
+
             <input type="text" id="telPaciente" class="form-control">
+
         </div>
+
         <div class="col-md-6 mb-3">
+
             <label>Dirección (Para Domicilio):</label>
+
             <input type="text" id="dirPaciente" class="form-control">
+
         </div>
+
     </div>
-    
+
+   
+
     <button class="btn btn-confirm" style="width: 100%; padding: 15px;" onclick="guardarNuevaCita()">
+
         💾 Agendar en FisioCid
+
     </button>
+
 </div>
+
+
+
 
 
 <div class="header">
+
     <h2>📅 Agenda de Citas - FisioCid</h2>
+
    
+
 </div>
+
 <div class="card" id="seccion-pendientes" style="border-left: 5px solid var(--warning);">
+
     <h3>📥 Inbox: Citas por Confirmar</h3>
+
     <p style="font-size: 0.85em; color: var(--text-muted); margin-bottom: 15px;">
+
         Aquí aparecen todas las nuevas solicitudes. Al confirmar o rechazar, se moverán a tu agenda.
+
     </p>
+
     <table id="tabla-pendientes-general">
 
 
+
+
+
         <thead>
+
     <tr>
+
         <th>Hora</th>
+
         <th>Paciente</th>
+
         <th>Servicio</th> <th>Estado</th>
+
         <th>Acciones</th>
+
     </tr>
-    
+
+   
+
 </thead>
+
         <tbody id="cuerpo-pendientes-general">
+
             </tbody>
+
     </table>
+
 </div>
+
 <div class="card">
+
     <h3>📅 Vista Semanal de Trabajo</h3>
+
     <div id="grid-semana" class="semana-container"></div>
+
 </div>
+
 <div class="card" id="seccion-detalle-dia" style="border-top: 5px solid var(--primary); margin-top: 30px;">
+
     <h3>📋 Detalle del Día Seleccionado</h3>
+
     <table>
+
         <thead>
+
             <tr>
+
                 <th>Hora</th>
+
                 <th>Paciente</th>
+
                 <th>WhatsApp</th>
+
                 <th>Estado</th>
+
                 <th>Acciones</th>
+
             </tr>
+
             <tbody id="cuerpo-tabla">
+
             <tr><td colspan="5" style="text-align:center; padding: 20px;">Selecciona una fecha para ver los detalles.</td></tr>
+
             </tbody>
-        </table> 
+
+        </table>
+
     </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-    /**
- * Calcula los bloques de tiempo para la agenda de FisioCid.
- * @param {string} horaSeleccionada - La hora que eligió el paciente (ej. "09:30")
- * @param {boolean} esDomicilio - Si el servicio es a domicilio.
- * @returns {object} Objeto con las horas de inicio y fin para el bloqueo.
- */
+
+const supabaseUrl = 'https://olepmqvjrfoxabgovpov.supabase.co';
+const supabaseKey = 'sb_publishable_umuc81u6M6cIIm_3riQwoA_8CdwFv9J';
+const clienteFisio = supabase.createClient(supabaseUrl, supabaseKey);
+
 function calcularBloqueoFisioCid(horaSeleccionada, esDomicilio) {
+
     // Convertimos la hora de texto a un objeto Date (usando hoy como base)
+
     let [horas, minutos] = horaSeleccionada.split(':');
+
     let fechaBase = new Date();
+
     fechaBase.setHours(parseInt(horas), parseInt(minutos), 0, 0);
+
+
 
     let inicioBloqueo, finBloqueo;
 
+
+
     if (esDomicilio) {
+
         // REGLA: 30 min antes para traslado de ida
+
         inicioBloqueo = new Date(fechaBase.getTime() - (30 * 60000));
+
         // REGLA: 1h de sesión + 30 min de regreso (90 min totales después del inicio)
+
         finBloqueo = new Date(fechaBase.getTime() + (90 * 60000));
-        
+
+       
+
         console.log(`🏠 Domicilio detectado. Bloqueando desde ${inicioBloqueo.toLocaleTimeString()} hasta ${finBloqueo.toLocaleTimeString()}`);
+
     } else {
+
         // REGLA: En consultorio solo bloqueamos la hora de la sesión
+
         inicioBloqueo = new Date(fechaBase.getTime());
+
         finBloqueo = new Date(fechaBase.getTime() + (60 * 60000));
-        
+
+       
+
         console.log(`🏥 Consultorio detectado. Bloqueando 1 hora.`);
+
     }
 
+
+
     return {
+
         inicio: inicioBloqueo.toISOString(), // Formato ISO para Supabase
+
         fin: finBloqueo.toISOString()
+
     };
+
 }
+
     // Sincronizar fecha inicial
+
     document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
 
+
+
 async function cargarCitasAdmin() {
+
     const fecha = document.getElementById('filtro-fecha').value;
+
     const cuerpoTabla = document.getElementById('cuerpo-tabla');
 
+
+
     try {
+
         const res = await fetch(`/ver-agenda?fecha=${fecha}`);
+
         const citasRaw = await res.json();
-        
+
+       
+
         // Mantenemos el filtro para no mostrar eliminadas de la base de datos
+
         const citas = citasRaw.filter(c => c.estado !== 'ELIMINADA');
-        
+
+       
+
         let html = '';
 
+
+
         if (citas.length > 0) {
+
             citas.forEach(c => {
+
                 const p = c.Pacientes || {};
+
                 const horaF = c.hora ? c.hora.slice(0, 5) : '--:--';
+
                 const estadoActual = (c.estado || 'PENDIENTE').toUpperCase();
-                
-                let claseEstado = 'estado-pend'; 
+
+               
+
+                let claseEstado = 'estado-pend';
+
                 let claseFila = '';
+
                 let botones = ''; // Aquí decidiremos qué mostrar
 
+
+
                 // LÓGICA DE INTERFAZ SEGÚN EL ESTADO
+
                // --- DENTRO DE cargarCitasAdmin, busca el bloque de LÓGICA DE INTERFAZ ---
 
 if (estadoActual === 'CONFIRMADA') {
+
     claseEstado = 'estado-conf';
+
     // Ahora incluimos "Rechazar/Cancelar" y "Ausente" aunque esté confirmada
+
     botones = `
+
         <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Cancelar</button>
+
         <button class="btn btn-delete" onclick="eliminarCita(${c.id_cita}, '${p.Nombre}')">Ausente</button>
+
     `;
-} 
-else if (estadoActual === 'AUSENTE' || estadoActual === 'RECHAZADA') {
-    claseEstado = 'estado-ausente';
-    claseFila = 'fila-ausente';
-    // Botón para REAGENDAR: Manda los datos del paciente de vuelta al formulario de arriba
-    botones = `
-        <button class="btn" style="background: var(--primary);" 
-            onclick="reagendarCita('${p.Nombre}', '${p.Telefono}', '${c.direccion_domicilio}')">
-            🔄 Reagendar
-        </button>
-    `;
-} 
-else {
-    // Estado PENDIENTE (Nuevo ingreso)
-    botones = `
-        <button class="btn btn-confirm" onclick="confirmarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Confirmar</button>
-        <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Rechazar</button>
-    `;
+
 }
 
-                const btnMapa = c.modalidad === 'domicilio' 
-                    ? `<button class="btn" style="background:#3b82f6" onclick="verMapa('${c.direccion_domicilio}')">📍</button>` 
+else if (estadoActual === 'AUSENTE' || estadoActual === 'RECHAZADA') {
+
+    claseEstado = 'estado-ausente';
+
+    claseFila = 'fila-ausente';
+
+    // Botón para REAGENDAR: Manda los datos del paciente de vuelta al formulario de arriba
+
+    botones = `
+
+        <button class="btn" style="background: var(--primary);"
+
+            onclick="reagendarCita('${p.Nombre}', '${p.Telefono}', '${c.direccion_domicilio}')">
+
+            🔄 Reagendar
+
+        </button>
+
+    `;
+
+}
+
+else {
+
+    // Estado PENDIENTE (Nuevo ingreso)
+
+    botones = `
+
+        <button class="btn btn-confirm" onclick="confirmarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Confirmar</button>
+
+        <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${p.Nombre}', '${p.Telefono}', '${fecha}', '${horaF}')">Rechazar</button>
+
+    `;
+
+}
+
+
+
+                const btnMapa = c.modalidad === 'domicilio'
+
+                    ? `<button class="btn" style="background:#3b82f6" onclick="verMapa('${c.direccion_domicilio}')">📍</button>`
+
                     : '';
 
+
+
                 html += `
+
                     <tr class="${claseFila}">
+
                         <td><b>${horaF} hrs</b></td>
+
                         <td>${p.Nombre || ''} ${p.Apellido_Paterno || ''}</td>
+
                         <td>${p.Telefono || 'Sin número'}</td>
+
                         <td><span class="${claseEstado}">${estadoActual}</span></td>
+
                         <td>
+
                             <div style="display:flex; gap:5px; align-items:center;">
+
                                 ${btnMapa}
+
                                 ${botones}
+
                             </div>
+
                         </td>
+
                     </tr>`;
+
             });
+
         } else {
+
             html = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No hay citas para este día.</td></tr>';
+
         }
-        
+
+       
+
         cuerpoTabla.innerHTML = html;
-    } catch (error) { 
-        console.error("Error:", error); 
+
+    } catch (error) {
+
+        console.error("Error:", error);
+
         cuerpoTabla.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error de conexión.</td></tr>';
+
     }
+
 }
-// 1. Cargar la lista de pacientes desde Supabase al iniciar
+
 async function cargarDirectorioPacientes() {
-    const { data: pacientes, error } = await supabase
-        .from('Pacientes') // Con P mayúscula como vimos en SQL
-        .select('id, nombre_completo, telefono, direccion_predeterminada');
-
-    if (error) {
-        console.error("Error cargando directorio:", error);
-        return;
-    }
-
-    const datalist = document.getElementById('listaPacientes');
-    datalist.innerHTML = ''; 
-
-    pacientes.forEach(p => {
-        const option = document.createElement('option');
-        option.value = p.nombre_completo;
-        // Guardamos los datos extra en atributos 'data'
-        option.dataset.tel = p.telefono || '';
-        option.dataset.dir = p.direccion_predeterminada || '';
-        datalist.appendChild(option);
-    });
-}
-
-// 2. Detectar cuando seleccionas un nombre para autocompletar
-document.getElementById('buscarPaciente').addEventListener('change', function() {
-    const valor = this.value;
-    const opciones = document.querySelectorAll('#listaPacientes option');
-    
-    opciones.forEach(opt => {
-        if (opt.value === valor) {
-            document.getElementById('telPaciente').value = opt.dataset.telefono || '';
-            document.getElementById('dirPaciente').value = opt.dataset.direccion || '';
-        }
-    });
-});
-
-// Ejecutar al cargar la página
-document.addEventListener('DOMContentLoaded', cargarDirectorioPacientes);
-
-    async function cargarVistaSemanal(fechaReferencia = new Date()) {
-        const grid = document.getElementById('grid-semana');
-        grid.innerHTML = ""; 
-        
-        const fechaBase = new Date(fechaReferencia);
-        fechaBase.setMinutes(fechaBase.getMinutes() + fechaBase.getTimezoneOffset());
-
-        const lunes = new Date(fechaBase);
-        const diff = fechaBase.getDay() === 0 ? 6 : fechaBase.getDay() - 1;
-        lunes.setDate(fechaBase.getDate() - diff);
-
-        for (let i = 0; i < 6; i++) {
-            const diaActual = new Date(lunes);
-            diaActual.setDate(lunes.getDate() + i);
-            const fechaISO = diaActual.toISOString().split('T')[0];
-            const nombreDia = diaActual.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
-
-            const col = document.createElement('div');
-            col.className = 'dia-columna';
-            col.innerHTML = `<div class="dia-header">${nombreDia.toUpperCase()}</div><div id="citas-${fechaISO}" style="padding: 5px;"></div>`;
-            grid.appendChild(col);
-
-            fetch(`/ver-agenda?fecha=${fechaISO}`)
-                .then(res => res.json())
-                .then(citas => {
-                    const cont = document.getElementById(`citas-${fechaISO}`);
-                    
-                    // --- LA CORRECCIÓN AQUÍ: Filtramos las rechazadas ---
-                    const citasVisibles = citas.filter(c => 
-                        c.estado !== 'RECHAZADA' && c.estado !== 'ELIMINADA'
-                    );
-
-                    if (citasVisibles.length > 0) {
-                        cont.innerHTML = citasVisibles.map(c => {
-                            const p = c.Pacientes || {};
-                            return `
-                                <div class="cita-mini">
-                                    <b>${c.hora.slice(0,5)} hrs</b>
-                                    <span>${p.Nombre || ''} ${p.Apellido_Paterno || ''}</span>
-                                </div>`;
-                        }).join('');
-                    } else {
-                        cont.innerHTML = "<p style='color:#cbd5e1; font-size:0.7em; text-align:center; margin-top:15px;'>Libre</p>";
-                    }
-                });
-        }
-    }
-
-    // Eventos
-    document.getElementById('filtro-fecha').addEventListener('change', (e) => {
-        cargarCitasAdmin();
-        cargarVistaSemanal(e.target.value);
-    });
-
-    function enviarWhatsApp(telefono, mensaje) {
-        const telLimpio = telefono.replace(/\D/g,'');
-        const link = `https://wa.me/${telLimpio.length === 10 ? '52' + telLimpio : telLimpio}?text=${encodeURIComponent(mensaje)}`;
-        window.open(link, '_blank');
-    }
-
-    async function cargarDatalistPacientes() {
     try {
-        const res = await fetch('/obtener-pacientes'); // Asegúrate que esta ruta exista en tu server.js
-        const pacientes = await res.json();
-        
-        const datalist = document.getElementById('listaPacientes');
-        datalist.innerHTML = ''; // Limpiamos para no duplicar
-
-        pacientes.forEach(p => {
-            const option = document.createElement('option');
-            // Guardamos nombre completo para que sea fácil de buscar
-            option.value = `${p.Nombre} ${p.Apellido_Paterno || ''}`;
-            // Podemos guardar el teléfono en un atributo oculto si lo necesitas
-            option.dataset.telefono = p.Telefono;
-            option.dataset.direccion = p.Direccion || '';
-            
-            datalist.appendChild(option);
-        });
-    } catch (error) {
-        console.error("Error al cargar pacientes para autocompletado:", error);
-    }
-}
-   // --- CONFIRMAR CITA (Cambia a Verde) ---
-async function confirmarCita(id, nombre, telefono, fecha, hora) {
-    const res = await fetch(`/actualizar-estado-cita`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, nuevoEstado: 'CONFIRMADA' })
-    });
-
-    if (res.ok) {
-        const mensaje = `¡Hola ${nombre}! Te confirma el Ft. Cristian de FisioCid. Tu cita del ${fecha} a las ${hora} hrs ha sido confirmada. ¡Te esperamos!`;
-        enviarWhatsApp(telefono, mensaje);
-        actualizarInterfaz();
-    }
-}
-
-// --- RECHAZAR CITA (Cambia a Rojo) ---
-async function rechazarCita(id, nombre, telefono, fecha, hora) {
-    // Si el paciente avisó, el motivo puede ser "Cancelación por paciente"
-    const motivo = prompt("Motivo de la cancelación:", "el paciente canceló por motivos personales");
-    if (!motivo) return;
-
-    const res = await fetch(`/actualizar-estado-cita`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, nuevoEstado: 'RECHAZADA' }) 
-    });
-
-    if (res.ok) {
-        // Mensaje empático de FisioCid
-        const mensaje = `Hola ${nombre}, enterado de la cancelación de tu cita para el ${fecha}. No te preocupes, el horario ha sido liberado. ¡Quedamos a tus órdenes!`;
-        enviarWhatsApp(telefono, mensaje);
-        actualizarInterfaz();
-    }
-}
-
-// --- ELIMINAR / NO ASISTIÓ (Cambia a Gris Atenuado) ---
-async function eliminarCita(id, nombre) {
-    if (!confirm(`¿Marcar la cita de ${nombre} como 'No asistió' o Cancelada?`)) return;
-
-    const res = await fetch(`/actualizar-estado-cita`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, nuevoEstado: 'AUSENTE' }) // O 'CANCELADA'
-    });
-
-    if (res.ok) {
-        actualizarInterfaz();
-    }
-}
-
-// Función auxiliar para refrescar todo
-function actualizarInterfaz() {
-    cargarCitasAdmin();
-    cargarVistaSemanal(document.getElementById('filtro-fecha').value);
-    cargarPendientesGlobales(); // <--- AGREGA ESTO para que el paciente desaparezca del inbox al confirmar
-}
-
-async function cargarPendientesGlobales() {
-    const cuerpo = document.getElementById('cuerpo-pendientes-general');
-    const seccion = document.getElementById('seccion-pendientes');
-
-    try {
-        const res = await fetch('/ver-pendientes-globales');
-        if (!res.ok) throw new Error("Error en servidor");
-        
-        const citas = await res.json();
-        
-        if (citas.length === 0) {
-            seccion.style.display = 'none'; // Solo se oculta si está vacío
-            return;
-        }
-
-        seccion.style.display = 'block'; // Se muestra si hay datos
-        cuerpo.innerHTML = citas.map(c => `
-    <tr>
-        <td>${c.fecha} - ${c.hora.slice(0,5)} hrs</td>
-        <td>${c.Pacientes.Nombre} ${c.Pacientes.Apellido_Paterno}</td>
-        <td>${c.modalidad === 'domicilio' ? '🏠 Domicilio' : '🏥 Clínica'}</td>
-        <td><span class="estado-pend">PENDIENTE</span></td>
-        <td>
-            <button class="btn btn-confirm" onclick="confirmarCita(${c.id_cita}, '${c.Pacientes.Nombre}', '${c.Pacientes.Telefono}', '${c.fecha}', '${c.hora.slice(0,5)}')">Confirmar</button>
-            <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${c.Pacientes.Nombre}', '${c.Pacientes.Telefono}', '${c.fecha}', '${c.hora.slice(0,5)}')">Rechazar</button>
-        </td>
-    </tr>
-`).join('');
-    } catch (error) {
-        console.error("El Inbox no pudo cargar:", error);
-        // No ocultamos la sección aquí para poder ver si hay errores en consola
-    }
-}
-// --- FUNCIÓN PARA GUARDAR CITA CON BLOQUEO TÉCNICO ---
-async function guardarNuevaCita() {
-    const nombre = document.getElementById('buscarPaciente').value;
-    const horaCita = document.getElementById('inputHora').value;
-    const modalidad = document.getElementById('tipoServicio').value;
-    const fecha = document.getElementById('filtro-fecha').value;
-    const telefono = document.getElementById('telPaciente').value;
-    const direccion = document.getElementById('dirPaciente').value;
-
-    if (!nombre || !horaCita) return alert("Por favor llena nombre y hora");
-
-    // Calculamos los bloques de 30 min ida/vuelta
-    const tiempos = calcularBloqueoFisioCid(horaCita, modalidad === 'domicilio');
-
-    try {
-        const { data, error } = await supabase
-            .from('Citas')
-            .insert([{
-                fecha: fecha,
-                hora: horaCita + ":00", // Formato HH:mm:ss para Postgres
-                modalidad: modalidad,
-                direccion_domicilio: direccion,
-                bloque_inicio: tiempos.inicio,
-                bloque_fin: tiempos.fin,
-                estado: 'CONFIRMADA' // Al ser manual, entra confirmada
-            }]);
+        // Usamos el nuevo nombre del cliente
+        const { data: listaPacientes, error } = await clienteFisio
+            .from('Pacientes')
+            .select('*');
 
         if (error) throw error;
 
-        alert("¡Cita agendada con éxito!");
-        
-        // Si es domicilio, avisamos por WhatsApp incluyendo que ya vamos en camino a esa hora
-        const msj = modalidad === 'domicilio' 
-            ? `¡Hola ${nombre}! Te confirma el Ft. Cristian. Agendamos tu visita a domicilio para el ${fecha} a las ${horaCita} hrs. Estaré llegando en ese horario.`
-            : `¡Hola ${nombre}! Tu cita en FisioCid ha sido agendada para el ${fecha} a las ${horaCita} hrs.`;
-        
-        enviarWhatsApp(telefono, msj);
-        actualizarInterfaz();
-        
-        // Limpiar formulario
-        document.getElementById('buscarPaciente').value = '';
+        const datalist = document.getElementById('listaPacientes');
+        if (!datalist) return;
+
+        datalist.innerHTML = ''; 
+
+        listaPacientes.forEach(p => {
+            const option = document.createElement('option');
+            // Asegúrate que en Supabase las columnas sean 'Nombre' y 'Apellido_Paterno'
+            const nombreFull = `${p.Nombre || ''} ${p.Apellido_Paterno || ''}`.trim().toUpperCase();
+            
+            option.value = nombreFull;
+            option.dataset.telefono = p.Telefono || '';
+            option.dataset.direccion = p.direccion_predeterminada || '';
+            
+            datalist.appendChild(option);
+        });
+
+        console.log("Directorio de FisioCid sincronizado con éxito.");
     } catch (err) {
-        console.error(err);
-        alert("Error al guardar: " + err.message);
+        console.error("Error al cargar pacientes:", err.message);
     }
 }
 
-// --- FUNCIÓN PARA ABRIR GOOGLE MAPS ---
-function verMapa(direccion) {
-    if (!direccion) return alert("No hay dirección registrada");
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion + ", Santiago Miahuatlán, Puebla")}`;
-    window.open(url, '_blank');
+
+document.getElementById('buscarPaciente').addEventListener('change', function() {
+
+    const seleccion = this.value;
+
+    const opciones = document.querySelectorAll('#listaPacientes option');
+
+   
+
+    opciones.forEach(opt => {
+
+        if (opt.value === seleccion) {
+
+            document.getElementById('telPaciente').value = opt.dataset.telefono || '';
+
+            document.getElementById('dirPaciente').value = opt.dataset.direccion || '';
+
+        }
+
+    });
+
+});
+
+
+
+// Ejecutar al cargar la página
+
+document.addEventListener('DOMContentLoaded', cargarDirectorioPacientes);
+
+
+
+    async function cargarVistaSemanal(fechaReferencia = new Date()) {
+
+        const grid = document.getElementById('grid-semana');
+
+        grid.innerHTML = "";
+
+       
+
+        const fechaBase = new Date(fechaReferencia);
+
+        fechaBase.setMinutes(fechaBase.getMinutes() + fechaBase.getTimezoneOffset());
+
+
+
+        const lunes = new Date(fechaBase);
+
+        const diff = fechaBase.getDay() === 0 ? 6 : fechaBase.getDay() - 1;
+
+        lunes.setDate(fechaBase.getDate() - diff);
+
+
+
+        for (let i = 0; i < 6; i++) {
+
+            const diaActual = new Date(lunes);
+
+            diaActual.setDate(lunes.getDate() + i);
+
+            const fechaISO = diaActual.toISOString().split('T')[0];
+
+            const nombreDia = diaActual.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
+
+
+
+            const col = document.createElement('div');
+
+            col.className = 'dia-columna';
+
+            col.innerHTML = `<div class="dia-header">${nombreDia.toUpperCase()}</div><div id="citas-${fechaISO}" style="padding: 5px;"></div>`;
+
+            grid.appendChild(col);
+
+
+
+            fetch(`/ver-agenda?fecha=${fechaISO}`)
+
+                .then(res => res.json())
+
+                .then(citas => {
+
+                    const cont = document.getElementById(`citas-${fechaISO}`);
+
+                   
+
+                    // --- LA CORRECCIÓN AQUÍ: Filtramos las rechazadas ---
+
+                    const citasVisibles = citas.filter(c =>
+
+                        c.estado !== 'RECHAZADA' && c.estado !== 'ELIMINADA'
+
+                    );
+
+
+
+                    if (citasVisibles.length > 0) {
+
+                        cont.innerHTML = citasVisibles.map(c => {
+
+                            const p = c.Pacientes || {};
+
+                            return `
+
+                                <div class="cita-mini">
+
+                                    <b>${c.hora.slice(0,5)} hrs</b>
+
+                                    <span>${p.Nombre || ''} ${p.Apellido_Paterno || ''}</span>
+
+                                </div>`;
+
+                        }).join('');
+
+                    } else {
+
+                        cont.innerHTML = "<p style='color:#cbd5e1; font-size:0.7em; text-align:center; margin-top:15px;'>Libre</p>";
+
+                    }
+
+                });
+
+        }
+
+    }
+
+
+
+    // Eventos
+
+    document.getElementById('filtro-fecha').addEventListener('change', (e) => {
+
+        cargarCitasAdmin();
+
+        cargarVistaSemanal(e.target.value);
+
+    });
+
+
+
+    function enviarWhatsApp(telefono, mensaje) {
+
+        const telLimpio = telefono.replace(/\D/g,'');
+
+        const link = `https://wa.me/${telLimpio.length === 10 ? '52' + telLimpio : telLimpio}?text=${encodeURIComponent(mensaje)}`;
+
+        window.open(link, '_blank');
+
+    }
+
+
+
+
+   // --- CONFIRMAR CITA (Cambia a Verde) ---
+
+async function confirmarCita(id, nombre, telefono, fecha, hora) {
+
+    const res = await fetch(`/actualizar-estado-cita`, {
+
+        method: 'POST',
+
+        headers: { 'Content-Type': 'application/json' },
+
+        body: JSON.stringify({ id, nuevoEstado: 'CONFIRMADA' })
+
+    });
+
+
+
+    if (res.ok) {
+
+        const mensaje = `¡Hola ${nombre}! Te confirma el Ft. Cristian de FisioCid. Tu cita del ${fecha} a las ${hora} hrs ha sido confirmada. ¡Te esperamos!`;
+
+        enviarWhatsApp(telefono, mensaje);
+
+        actualizarInterfaz();
+
+    }
+
 }
+
+
+
+// --- RECHAZAR CITA (Cambia a Rojo) ---
+
+async function rechazarCita(id, nombre, telefono, fecha, hora) {
+
+    // Si el paciente avisó, el motivo puede ser "Cancelación por paciente"
+
+    const motivo = prompt("Motivo de la cancelación:", "el paciente canceló por motivos personales");
+
+    if (!motivo) return;
+
+
+
+    const res = await fetch(`/actualizar-estado-cita`, {
+
+        method: 'POST',
+
+        headers: { 'Content-Type': 'application/json' },
+
+        body: JSON.stringify({ id, nuevoEstado: 'RECHAZADA' })
+
+    });
+
+
+
+    if (res.ok) {
+
+        // Mensaje empático de FisioCid
+
+        const mensaje = `Hola ${nombre}, enterado de la cancelación de tu cita para el ${fecha}. No te preocupes, el horario ha sido liberado. ¡Quedamos a tus órdenes!`;
+
+        enviarWhatsApp(telefono, mensaje);
+
+        actualizarInterfaz();
+
+    }
+
+}
+
+
+
+// --- ELIMINAR / NO ASISTIÓ (Cambia a Gris Atenuado) ---
+
+async function eliminarCita(id, nombre) {
+
+    if (!confirm(`¿Marcar la cita de ${nombre} como 'No asistió' o Cancelada?`)) return;
+
+
+
+    const res = await fetch(`/actualizar-estado-cita`, {
+
+        method: 'POST',
+
+        headers: { 'Content-Type': 'application/json' },
+
+        body: JSON.stringify({ id, nuevoEstado: 'AUSENTE' }) // O 'CANCELADA'
+
+    });
+
+
+
+    if (res.ok) {
+
+        actualizarInterfaz();
+
+    }
+
+}
+
+
+
+// Función auxiliar para refrescar todo
+
+function actualizarInterfaz() {
+
+    cargarCitasAdmin();
+
+    cargarVistaSemanal(document.getElementById('filtro-fecha').value);
+
+    cargarPendientesGlobales(); // <--- AGREGA ESTO para que el paciente desaparezca del inbox al confirmar
+
+}
+
+
+
+async function cargarPendientesGlobales() {
+
+    const cuerpo = document.getElementById('cuerpo-pendientes-general');
+
+    const seccion = document.getElementById('seccion-pendientes');
+
+
+
+    try {
+
+        const res = await fetch('/ver-pendientes-globales');
+
+        if (!res.ok) throw new Error("Error en servidor");
+
+       
+
+        const citas = await res.json();
+
+       
+
+        if (citas.length === 0) {
+
+            seccion.style.display = 'none'; // Solo se oculta si está vacío
+
+            return;
+
+        }
+
+
+
+        seccion.style.display = 'block'; // Se muestra si hay datos
+
+        cuerpo.innerHTML = citas.map(c => `
+
+    <tr>
+
+        <td>${c.fecha} - ${c.hora.slice(0,5)} hrs</td>
+
+        <td>${c.Pacientes.Nombre} ${c.Pacientes.Apellido_Paterno}</td>
+
+        <td>${c.modalidad === 'domicilio' ? '🏠 Domicilio' : '🏥 Clínica'}</td>
+
+        <td><span class="estado-pend">PENDIENTE</span></td>
+
+        <td>
+
+            <button class="btn btn-confirm" onclick="confirmarCita(${c.id_cita}, '${c.Pacientes.Nombre}', '${c.Pacientes.Telefono}', '${c.fecha}', '${c.hora.slice(0,5)}')">Confirmar</button>
+
+            <button class="btn btn-reject" onclick="rechazarCita(${c.id_cita}, '${c.Pacientes.Nombre}', '${c.Pacientes.Telefono}', '${c.fecha}', '${c.hora.slice(0,5)}')">Rechazar</button>
+
+        </td>
+
+    </tr>
+
+`).join('');
+
+    } catch (error) {
+
+        console.error("El Inbox no pudo cargar:", error);
+
+        // No ocultamos la sección aquí para poder ver si hay errores en consola
+
+    }
+
+}
+
+async function guardarNuevaCita() {
+    const horaVal = document.getElementById('inputHora').value;
+    const esDomicilio = document.getElementById('tipoServicio').value === 'domicilio';
+    
+    // Usamos tu función de cálculo para los bloqueos
+    const bloqueos = calcularBloqueoFisioCid(horaVal, esDomicilio);
+
+    const datos = {
+        nombre: document.getElementById('buscarPaciente').value.toUpperCase(),
+        tel: document.getElementById('telPaciente').value,
+        fecha_cita: document.getElementById('filtro-fecha').value,
+        hora_cita: horaVal,
+        modalidad: document.getElementById('tipoServicio').value,
+        direccion: document.getElementById('dirPaciente').value.toUpperCase(),
+        inicio_bloqueo: bloqueos.inicio,
+        fin_bloqueo: bloqueos.fin
+    };
+
+    const res = await fetch('/registro-recepcion-completo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+    });
+    
+    if (res.ok) {
+        alert("¡Cita agendada en FisioCid!");
+        // Limpiamos el formulario y refrescamos
+        document.getElementById('buscarPaciente').value = "";
+        document.getElementById('telPaciente').value = "";
+        actualizarInterfaz(); 
+    } else {
+        alert("Hubo un error al agendar.");
+    }
+}
+
+function verMapa(direccion) {
+
+    if (!direccion) return alert("No hay dirección registrada");
+
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion + ", Santiago Miahuatlán, Puebla")}`;
+
+    window.open(url, '_blank');
+
+}
+
+
 
 function reagendarCita(nombre, telefono, direccion) {
+
     // Subimos el scroll al formulario
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
+
+
     // Llenamos los campos automáticamente
+
     document.getElementById('buscarPaciente').value = nombre;
+
     document.getElementById('telPaciente').value = telefono;
+
     document.getElementById('dirPaciente').value = direccion || '';
-    
+
+   
+
     // Le damos un pequeño efecto visual al formulario para saber que se cargó
+
     const cardForm = document.querySelector('.card');
+
     cardForm.style.backgroundColor = '#fffbeb'; // Un tono crema temporal
+
     setTimeout(() => cardForm.style.backgroundColor = 'white', 1000);
 
+
+
     console.log("Datos cargados para reagendar a:", nombre);
+
 }
+
+
 
 // Esta función se ejecuta cada vez que cambias la fecha en el cuadro nuevo
+
 function actualizarTodo() {
+
     const fechaSeleccionada = document.getElementById('filtro-fecha').value;
-    
+
+   
+
     // 1. Actualiza la tabla de detalles
-    cargarCitasAdmin(); 
-    
+
+    cargarCitasAdmin();
+
+   
+
     // 2. Si tienes una función para la vista semanal, la llamas aquí también
-    // actualizarVistaSemanal(fechaSeleccionada); 
-    
+
+    // actualizarVistaSemanal(fechaSeleccionada);
+
+   
+
     console.log("Agenda sincronizada con la fecha:", fechaSeleccionada);
+
 }
 
-// Al cargar la página por primera vez
-// UNIFICADO: Todo lo que debe pasar al cargar la página
-window.onload = async function() {
-    // ... lo que ya tenías de la fecha ...
-    
-    await Promise.all([
-        cargarCitasAdmin(),
-        cargarVistaSemanal(),
-        cargarPendientesGlobales(),
-        cargarDatalistPacientes() // <--- AGREGAR ESTO AQUÍ
-    ]);
+// --- 1. INICIO DE LA APLICACIÓN ---
+window.onload = async () => {
+    console.log("Iniciando Panel FisioCid...");
+    try {
+        // Usamos los nombres exactos que pusiste en el flujo
+        await cargarDirectorioPacientes(); 
+        await cargarCitasAdmin(); // Esta es la que llena la agenda semanal
+    } catch (error) {
+        console.error("Error en la carga inicial:", error);
+    }
 };
 
+// --- 2. FUNCIÓN DE PACIENTES CORREGIDA ---
+async function cargarDirectorioPacientes() {
+    try {
+        const { data: pacientes, error } = await clienteFisio
+            .from('Pacientes')
+            .select('*');
+
+        if (error) throw error;
+
+        const datalist = document.getElementById('listaPacientes');
+        if (!datalist) return;
+
+        datalist.innerHTML = ''; 
+
+        pacientes.forEach(p => {
+            const option = document.createElement('option');
+            // Unificamos para que siempre use Nombre completo
+            const nombreFull = `${p.Nombre} ${p.Apellido_Paterno || ''}`.trim().toUpperCase();
+            
+            option.value = nombreFull;
+            option.dataset.telefono = p.Telefono || '';
+            option.dataset.direccion = p.direccion_predeterminada || '';
+            
+            datalist.appendChild(option);
+        });
+
+        console.log("Directorio de pacientes sincronizado.");
+    } catch (error) {
+        console.error("Error al cargar pacientes:", error);
+    }
+}
+// --- LÓGICA DE HORARIOS DINÁMICOS FISIOCID ---
+function actualizarHorariosDisponibles() {
+    const tipoServicio = document.getElementById('tipoServicio').value;
+    const selectHora = document.getElementById('inputHora');
+    
+    // Limpiamos lo que haya
+    selectHora.innerHTML = '<option value="">Selecciona horario...</option>';
+
+    let horarios = [];
+
+    if (tipoServicio === 'domicilio') {
+        // Horarios con espacio para traslados (Ejemplo)
+        horarios = ["09:00", "11:00", "13:00"]; 
+    } else {
+        // Horarios normales de consultorio cada media hora
+        horarios = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00"];
+    }
+
+    horarios.forEach(h => {
+        const opt = document.createElement('option');
+        opt.value = h;
+        // Formato visual amigable (AM/PM)
+        const sufijo = parseInt(h.split(':')[0]) >= 12 ? " PM" : " AM";
+        opt.textContent = h + sufijo;
+        selectHora.appendChild(opt);
+    });
+}
+
+window.onload = async () => {
+    console.log("Iniciando Panel de Control FisioCid...");
+
+    try {
+        // 1. Cargamos el directorio de pacientes para el autocompletado
+        // Esta función usa 'clienteFisio' que declaramos arriba
+        await cargarDirectorioPacientes();
+        console.log("✔ Directorio cargado");
+
+        // 2. Cargamos la agenda semanal (asegúrate de que el nombre coincida)
+        if (typeof cargarCitasAdmin === "function") {
+            await cargarCitasAdmin();
+            console.log("✔ Agenda semanal lista");
+        }
+
+        // 3. Intento de carga de funciones secundarias (con protección de errores)
+        try {
+            if (typeof cargarPendientesGlobales === "function") {
+                await cargarPendientesGlobales();
+            }
+        } catch (e) {
+            console.warn("Nota: La función de pendientes no está lista o falló, pero el sistema sigue funcionando.");
+        }
+
+        console.log("Sistema FisioCid operando correctamente.");
+
+    } catch (error) {
+        console.error("Error crítico en el inicio del panel:", error);
+        alert("Hubo un problema al conectar con la base de datos de FisioCid.");
+    }
+};
 </script>
+
 </body>
+
 </html>

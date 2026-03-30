@@ -257,75 +257,57 @@ app.get('/horarios-ocupados', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// RUTA DE REGISTRO COMPLETO (Corregida y Cerrada)
-// Dentro de tu ruta de registro/agendado en server.js
+// --- RUTA PARA REGISTRO COMPLETO (RECEPCIÓN) ---
 app.post('/registro-recepcion-completo', async (req, res) => {
-    try {
-        // Limpiamos espacios nuevamente por seguridad
-        const nombre = req.body.nombre.trim().toUpperCase();
-        const ap = req.body.ap.trim().toUpperCase();
-        const am = req.body.am.trim().toUpperCase();
-        const tel = req.body.tel.trim();
-        const { fecha_nac, fecha_cita, hora_cita } = req.body;
+    const { nombre, tel, fecha_cita, hora_cita, modalidad, direccion, inicio_bloqueo, fin_bloqueo } = req.body;
 
-        // 1. BUSCAR SI EL PACIENTE YA EXISTE (Por Nombre, Apellido y Fecha de Nacimiento)
-        const { data: existente, error: errBusca } = await supabase
+    try {
+        // 1. Buscar si el paciente ya existe en FisioCid
+        let { data: paciente, error: errorBusqueda } = await supabase
             .from('Pacientes')
             .select('id')
-            .eq('Nombre', nombre)
-            .eq('Apellido_Paterno', ap)
-            .eq('Fecha_Nacimiento', fecha_nac)
-            .maybeSingle(); // Usamos maybeSingle para que no de error si no hay nadie
+            .or(`Nombre.ilike.%${nombre}%,Telefono.eq.${tel}`)
+            .single();
 
-        if (errBusca) throw errBusca;
+        let idPaciente;
 
-        let idFinal;
-
-        if (existente) {
-            // SI EXISTE: Solo actualizamos el teléfono (por si es nuevo)
-            const { data: actualizado } = await supabase
+        if (!paciente) {
+            // 2. Si es nuevo, lo registramos primero
+            const { data: nuevoP, error: errorNuevo } = await supabase
                 .from('Pacientes')
-                .update({ Telefono: tel, Apellido_Materno: am })
-                .eq('id', existente.id)
-                .select();
-            idFinal = existente.id;
+                .insert([{ Nombre: nombre, Telefono: tel, direccion_predeterminada: direccion }])
+                .select()
+                .single();
+            
+            if (errorNuevo) throw errorNuevo;
+            idPaciente = nuevoP.id;
         } else {
-            // NO EXISTE: Creamos el registro desde cero
-            const { data: nuevo, error: errNuevo } = await supabase
-                .from('Pacientes')
-                .insert([{ 
-                    Nombre: nombre, 
-                    Apellido_Paterno: ap, 
-                    Apellido_Materno: am, 
-                    Telefono: tel,
-                    Fecha_Nacimiento: fecha_nac 
-                }])
-                .select();
-            if (errNuevo) throw errNuevo;
-            idFinal = nuevo[0].id;
+            idPaciente = paciente.id;
         }
 
-        // 2. INSERTAR LA CITA vinculada al ID encontrado/creado
-        const { error: errCita } = await supabase
+        // 3. Insertar la cita con el bloqueo de tiempo
+        const { error: errorCita } = await supabase
             .from('Citas')
-            .insert([{ 
-                id_paciente: idFinal, 
-                fecha: fecha_cita, 
+            .insert([{
+                id_paciente: idPaciente,
+                fecha: fecha_cita,
                 hora: hora_cita,
-                estado: 'Pendiente'
+                modalidad: modalidad,
+                direccion_domicilio: direccion,
+                estado: 'CONFIRMADA', // Al ser manual por Cristian, la damos por confirmada
+                inicio_bloqueo: inicio_bloqueo, // ISOString enviado desde el front
+                fin_bloqueo: fin_bloqueo      // ISOString enviado desde el front
             }]);
 
-        if (errCita) throw errCita;
+        if (errorCita) throw errorCita;
 
-        // 3. RESPUESTA DE ÉXITO (Esto descongela el botón)
-        res.status(200).json({ mensaje: "Registro completado con éxito" });
+        res.status(200).json({ mensaje: "Cita y paciente procesados con éxito" });
 
     } catch (error) {
-        console.error("Error en proceso:", error.message);
-        res.status(500).json({ error: error.message });
+        console.error("Error en registro completo:", error.message);
+        res.status(400).json({ error: error.message });
     }
 });
-// RUTA PARA CAMBIAR ESTADOS (Confirmar, Rechazar, Ausente)
 app.post('/actualizar-estado-cita', async (req, res) => {
     const { id, nuevoEstado } = req.body;
     try {
